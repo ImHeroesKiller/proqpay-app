@@ -22,5 +22,11 @@
 | Quick link Approvals | `/approval` | — | Active |
 | Quick link Payment instructions | `/payment-instructions` | — | Active |
 | Quick link Disbursement | `/disbursement` | — | Active |
+| AR Total Outstanding | `/working-capital` | WC settlement | Active |
+| AR Client Funded | `/payroll?status=CLOSED` | CLOSED | Active |
+| AR Working Capital Used | `/working-capital` | — | Active |
+| AR Draft Funding Requirement | `/payroll?status=DRAFT` | DRAFT | Active |
+| AR row (WC) | `/working-capital` | — | Active |
+| AR row (period/draft) | `/payroll/[id]` | period | Active |
 
 **Note:** List pages may not yet implement every query param server-side; links establish the navigation contract for progressive enhancement.
