@@ -1,21 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  Area,
-  AreaChart,
 } from "recharts";
 import type { ExecutiveDashboardData } from "@/lib/data/executive-dashboard";
-import { formatRupiah } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatCompactIDR, formatFullIDR } from "@/lib/format/idr";
+import { useRouter } from "next/navigation";
 
 const NAVY = "#0B3A6E";
 const BLUE = "#2563EB";
@@ -28,17 +27,6 @@ const tooltipStyle = {
   fontSize: 12,
   boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
 };
-
-const TABS = [
-  "Executive",
-  "Geography",
-  "Payroll",
-  "Workforce",
-  "Pipeline",
-  "Funding",
-] as const;
-
-type Tab = (typeof TABS)[number];
 
 function ChartCard({
   title,
@@ -63,201 +51,158 @@ function ChartCard({
 }
 
 export function ExecutiveChartsGrid({ data }: { data: ExecutiveDashboardData }) {
-  const [tab, setTab] = useState<Tab>("Executive");
-
-  const provincePay = data.provinceDistribution
-    .filter((p) => p.historicalPayroll + p.draftPayroll > 0)
-    .map((p) => ({
-      name: p.name,
-      historical: p.historicalPayroll / 1_000_000,
-      draft: p.draftPayroll / 1_000_000,
-    }));
-
-  const cityPay = data.cityDistribution
-    .filter((c) => c.historicalPayroll + c.draftPayroll > 0)
-    .map((c) => ({
-      name: c.name,
-      historical: c.historicalPayroll / 1_000_000,
-      draft: c.draftPayroll / 1_000_000,
-    }));
+  const router = useRouter();
 
   const trend = data.payrollTrend.map((t) => ({
     period: t.period.replace(" 2026", ""),
     amount: t.amount / 1_000_000,
     status: t.status,
+    href: t.href,
+  }));
+
+  const cityPay = data.cityRanking.map((c) => ({
+    name: c.cityName,
+    value: c.payrollValue / 1_000_000,
+    cityCode: c.cityCode,
   }));
 
   return (
-    <div>
-      <div
-        className="mb-3 flex flex-wrap gap-1 rounded-xl border border-border/70 bg-white p-1 shadow-[var(--elevation-sm)]"
-        role="tablist"
-        aria-label="Analytics views"
+    <div className="grid gap-4 lg:grid-cols-2">
+      <ChartCard
+        title="Payroll Trend by Period"
+        subtitle="Existing-client totalNet · click point opens period"
       >
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-              tab === t
-                ? "bg-navy text-white"
-                : "text-muted-foreground hover:bg-slate-50 hover:text-foreground",
-            )}
-            onClick={() => setTab(t)}
+        {trend.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={trend}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              onClick={(state) => {
+                const i = state?.activeTooltipIndex;
+                if (i == null) return;
+                const row = data.payrollTrend[i as number];
+                if (row?.href) router.push(row.href);
+              }}
+            >
+              <defs>
+                <linearGradient id="payFillId" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={NAVY} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={NAVY} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke={GRID} vertical={false} />
+              <XAxis
+                dataKey="period"
+                tick={{ fontSize: 10, fill: SLATE }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: SLATE }}
+                axisLine={false}
+                tickLine={false}
+                width={36}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                formatter={(v) => [
+                  formatCompactIDR(Number(v) * 1_000_000),
+                  "Payroll",
+                ]}
+              />
+              <Area
+                type="monotone"
+                dataKey="amount"
+                stroke={NAVY}
+                strokeWidth={2}
+                fill="url(#payFillId)"
+                className="cursor-pointer"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <Empty />
+        )}
+      </ChartCard>
+
+      <ChartCard
+        title="Payroll by City / Regency"
+        subtitle="Selected period · click bar uses city filter via ranking table"
+      >
+        {cityPay.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={cityPay}
+              layout="vertical"
+              margin={{ top: 0, right: 8, left: 8, bottom: 0 }}
+            >
+              <CartesianGrid stroke={GRID} horizontal={false} />
+              <XAxis type="number" hide />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={100}
+                tick={{ fontSize: 10, fill: SLATE }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                formatter={(v) => [
+                  formatCompactIDR(Number(v) * 1_000_000),
+                  "Value",
+                ]}
+              />
+              <Bar dataKey="value" fill={BLUE} radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <Empty />
+        )}
+      </ChartCard>
+
+      <div className="surface-premium p-5 lg:col-span-2">
+        <h3 className="font-heading text-sm font-semibold">
+          Quick links from current period
+        </h3>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {data.selectedPeriod ? (
+            <Link
+              href={`/payroll/${data.selectedPeriod.id}`}
+              className="rounded-2xl border border-border/80 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-[var(--elevation-sm)] hover:border-navy/30"
+            >
+              Open {data.selectedPeriod.name} (
+              {formatCompactIDR(data.selectedPeriod.totalNet)})
+            </Link>
+          ) : null}
+          <Link
+            href="/sales?clientType=PROSPECT"
+            className="rounded-2xl border border-border/80 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-[var(--elevation-sm)] hover:border-navy/30"
           >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2" role="tabpanel">
-        {(tab === "Executive" || tab === "Payroll") && (
-          <ChartCard
-            title="Payroll Trend by Period"
-            subtitle="Existing-client totalNet · IDR millions · CLOSED vs DRAFT labeled in data"
+            Pipeline {formatCompactIDR(data.validation.pipeline)}
+          </Link>
+          <Link
+            href="/approval"
+            className="rounded-2xl border border-border/80 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-[var(--elevation-sm)] hover:border-navy/30"
           >
-            {trend.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="payFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={NAVY} stopOpacity={0.2} />
-                      <stop offset="100%" stopColor={NAVY} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke={GRID} vertical={false} />
-                  <XAxis dataKey="period" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={36} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(v) => [formatRupiah(Number(v) * 1_000_000), "Payroll"]}
-                  />
-                  <Area type="monotone" dataKey="amount" stroke={NAVY} strokeWidth={2} fill="url(#payFill)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty />
-            )}
-          </ChartCard>
-        )}
-
-        {(tab === "Executive" || tab === "Geography" || tab === "Payroll") && (
-          <ChartCard title="Payroll by Province" subtitle="Historical vs draft · IDR millions">
-            {provincePay.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={provincePay} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={GRID} vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={36} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="historical" name="Historical CLOSED" fill={NAVY} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="draft" name="Draft" fill={BLUE} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty />
-            )}
-          </ChartCard>
-        )}
-
-        {(tab === "Geography" || tab === "Payroll") && (
-          <ChartCard title="Payroll by City / Regency" subtitle="Within current filter scope">
-            {cityPay.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={cityPay} layout="vertical" margin={{ top: 0, right: 8, left: 8, bottom: 0 }}>
-                  <CartesianGrid stroke={GRID} horizontal={false} />
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="historical" name="Historical" fill={NAVY} radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="draft" name="Draft" fill={BLUE} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty />
-            )}
-          </ChartCard>
-        )}
-
-        {(tab === "Workforce" || tab === "Geography") && (
-          <ChartCard title="Employees by Province" subtitle="Active + probation on existing clients">
-            {data.workforceByProvince.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.workforceByProvince} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={GRID} vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="count" fill={BLUE} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty />
-            )}
-          </ChartCard>
-        )}
-
-        {(tab === "Pipeline" || tab === "Executive") && (
-          <ChartCard title="Prospect Pipeline by Geography" subtitle="Estimated payroll · OPEN only">
-            {data.pipelineByGeo.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.pipelineByGeo} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
-                  <CartesianGrid stroke={GRID} vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 9, fill: SLATE }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={40} />
-                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${(v / 1e9).toFixed(1)}B`} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [formatRupiah(Number(v)), "Pipeline"]} />
-                  <Bar dataKey="amount" fill={BLUE} radius={[4, 4, 0, 0]}>
-                    {data.pipelineByGeo.map((_, i) => (
-                      <Cell key={i} fill={i === 0 ? BLUE : NAVY} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty />
-            )}
-          </ChartCard>
-        )}
-
-        {(tab === "Funding" || tab === "Payroll") && (
-          <ChartCard title="Workflow Status by Geography Scope" subtitle="Period counts in current filter">
-            {data.workflowByStatus.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.workflowByStatus} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
-                  <CartesianGrid stroke={GRID} vertical={false} />
-                  <XAxis dataKey="status" tick={{ fontSize: 9, fill: SLATE }} axisLine={false} tickLine={false} interval={0} angle={-20} textAnchor="end" height={48} />
-                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="count" fill={NAVY} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty />
-            )}
-          </ChartCard>
-        )}
-
-        {tab === "Geography" && (
-          <ChartCard title="Client Portfolio by Geography" subtitle="Existing vs prospect counts">
-            {data.portfolioByGeo.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.portfolioByGeo} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke={GRID} vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="existing" name="Existing" fill={NAVY} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="prospect" name="Prospect" fill={BLUE} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty />
-            )}
-          </ChartCard>
-        )}
+            Approvals
+          </Link>
+          <Link
+            href="/payment-instructions"
+            className="rounded-2xl border border-border/80 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-[var(--elevation-sm)] hover:border-navy/30"
+          >
+            Payment instructions
+          </Link>
+          <Link
+            href="/disbursement"
+            className="rounded-2xl border border-border/80 bg-white px-3 py-2 text-xs font-semibold text-navy shadow-[var(--elevation-sm)] hover:border-navy/30"
+          >
+            Disbursement
+          </Link>
+        </div>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          Exact historical total: {formatFullIDR(data.validation.historicalPayroll)}
+        </p>
       </div>
     </div>
   );
@@ -266,7 +211,7 @@ export function ExecutiveChartsGrid({ data }: { data: ExecutiveDashboardData }) 
 function Empty() {
   return (
     <p className="flex h-full items-center justify-center text-xs text-muted-foreground">
-      No data in current geographic scope
+      No data in current filter scope
     </p>
   );
 }

@@ -1,4 +1,4 @@
-/** Geographic status for operating footprint — never conflate plan with live ops. */
+/** Geographic status for Indonesia operating footprint. */
 export type GeoEntityStatus =
   | "ACTIVE_OPERATION"
   | "PROSPECT"
@@ -18,23 +18,18 @@ export type GeoRef = {
   status: GeoEntityStatus;
 };
 
+/** Dashboard filters — Indonesia only (no country selector). */
 export type GeoFilters = {
-  country?: string | null;
   province?: string | null;
   city?: string | null;
   site?: string | null;
+  /** client | internal | all — default client */
+  scope?: string | null;
   clientType?: string | null;
   clientId?: string | null;
   projectId?: string | null;
   periodId?: string | null;
   payrollStatus?: string | null;
-  currency?: string | null;
   fundingType?: string | null;
-  /** national | global_readiness */
-  viewMode?: "national" | "global_readiness";
+  currency?: string | null;
 };
-
-export type OperationalEntityKey =
-  | "company:name"
-  | "project:code"
-  | "clientType:internal";
