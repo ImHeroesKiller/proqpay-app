@@ -193,6 +193,44 @@ enum ClientLifecycleStatus {
   @@schema("proqpay")
 }
 
+/// I1 Master Data — legal/business entity classification for Company (Client = CLIENT).
+enum CompanyEntityKind {
+  INTERNAL
+  CLIENT
+  VENDOR
+  PARTNER
+
+  @@schema("proqpay")
+}
+
+/// I1 Master Data — generic active/inactive for sites, groups, cycles.
+enum MasterDataStatus {
+  ACTIVE
+  INACTIVE
+
+  @@schema("proqpay")
+}
+
+/// I1 Master Data — pay cycle frequency (not hardcoded monthly).
+enum PayCycleFrequency {
+  WEEKLY
+  BIWEEKLY
+  SEMIMONTHLY
+  MONTHLY
+  CUSTOM
+
+  @@schema("proqpay")
+}
+
+/// I1 Master Data — effective-dated employee → payroll group assignment.
+enum AssignmentStatus {
+  ACTIVE
+  ENDED
+  SUSPENDED
+
+  @@schema("proqpay")
+}
+
 enum WorkingCapitalFacilityStatus {
   NOT_ENABLED
   ENABLED
@@ -417,6 +455,16 @@ model Company {
   address                 String?
   lifecycleStatus         ClientLifecycleStatus        @default(ACTIVE) @map("lifecycle_status")
   clientType              String?                      @map("client_type")
+  /// I1: explicit entity kind — CLIENT is the billing party for payroll processing.
+  entityKind              CompanyEntityKind            @default(CLIENT) @map("entity_kind")
+  /// I1: billing presentation (defaults to name when null)
+  billingName             String?                      @map("billing_name")
+  billingAddress          String?                      @map("billing_address")
+  paymentTermsDays        Int?                         @default(30) @map("payment_terms_days")
+  defaultCurrency         String                       @default("IDR") @map("default_currency")
+  billingContactName      String?                      @map("billing_contact_name")
+  billingContactEmail     String?                      @map("billing_contact_email")
+  billingContactPhone     String?                      @map("billing_contact_phone")
   industry                String?
   employeeRange           String?                      @map("employee_range")
   estimatedMonthlyPayroll Decimal?                     @map("estimated_monthly_payroll") @db.Decimal(18, 2)
@@ -472,9 +520,14 @@ model Company {
   payrollJournals         PayrollJournal[]
   payrollBudgets          PayrollBudget[]
   payrollComponentCategories PayrollComponentCategory[]
+  /// I1 Master Data
+  sites                   Site[]
+  payCycles               PayCycle[]
+  payrollGroups           PayrollGroup[]
 
   @@index([organizationId])
   @@index([lifecycleStatus])
+  @@index([entityKind])
   @@map("companies")
   @@schema("proqpay")
 }
@@ -506,6 +559,7 @@ model User {
   wcCreated             WorkingCapitalRequest[] @relation("WcCreatedBy")
   wcReviewed            WorkingCapitalRequest[] @relation("WcReviewedBy")
   wcApproved            WorkingCapitalRequest[] @relation("WcApprovedBy")
+  lockedPayrollPeriods  PayrollPeriod[]         @relation("PayrollPeriodLockedBy")
 
   @@index([organizationId])
   @@index([companyId])
@@ -555,6 +609,7 @@ model Employee {
   paymentItems    PaymentInstructionItem[]
   projectAssignments ProjectAssignment[]
   attendanceRecords AttendanceRecord[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, employeeCode])
   @@index([companyId])
@@ -589,12 +644,23 @@ model PayrollPeriod {
   totalPph21               Decimal                  @default(0) @map("total_pph21") @db.Decimal(18, 2)
   version                  Int                      @default(1)
   lockedAt                 DateTime?                @map("locked_at")
+  /// I1: who locked the period (nullable for legacy)
+  lockedById               String?                  @map("locked_by_id") @db.Uuid
   projectId                String?                  @map("project_id") @db.Uuid
+  /// I1 Master Data binding (nullable until backfill; new periods require these)
+  payrollGroupId           String?                  @map("payroll_group_id") @db.Uuid
+  payCycleId               String?                  @map("pay_cycle_id") @db.Uuid
+  cutoffAt                 DateTime?                @map("cutoff_at")
+  approvalDueAt            DateTime?                @map("approval_due_at")
+  paymentDueAt             DateTime?                @map("payment_due_at") @db.Date
   createdAt                DateTime                 @default(now()) @map("created_at")
   updatedAt                DateTime                 @updatedAt @map("updated_at")
   company                  Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   project                  Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
   sourceBankAccount        BankAccount?             @relation("PayrollSourceAccount", fields: [sourceBankAccountId], references: [id], onDelete: SetNull)
+  payrollGroup             PayrollGroup?            @relation(fields: [payrollGroupId], references: [id], onDelete: SetNull)
+  payCycle                 PayCycle?                @relation(fields: [payCycleId], references: [id], onDelete: SetNull)
+  lockedBy                 User?                    @relation("PayrollPeriodLockedBy", fields: [lockedById], references: [id], onDelete: SetNull)
   lines                    PayrollLine[]
   approvals                ApprovalStep[]
   disbursements            DisbursementBatch[]
@@ -607,6 +673,8 @@ model PayrollPeriod {
   @@index([status])
   @@index([fundingModel])
   @@index([projectId])
+  @@index([payrollGroupId])
+  @@index([payCycleId])
   @@map("payroll_periods")
   @@schema("proqpay")
 }
@@ -1055,6 +1123,7 @@ model Position {
   updatedAt DateTime   @updatedAt @map("updated_at")
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees Employee[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1073,6 +1142,7 @@ model CostCenter {
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees Employee[]
   projects  Project[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1137,6 +1207,9 @@ model Project {
   payrollPeriods PayrollPeriod[]
   attendanceRecords AttendanceRecord[]
   invoices       Invoice[]
+  sites          Site[]
+  payrollGroups  PayrollGroup[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -2116,5 +2189,138 @@ model PayrollBudgetAllocation {
 
   @@index([budgetId])
   @@map("payroll_budget_allocations")
+  @@schema("proqpay")
+}
+
+// ═══════════════════════════════════════════════════════════
+// Increment I1 — Master Data Completion (additive)
+// Client = Company(entityKind=CLIENT) + billing fields
+// Site · PayCycle · PayrollGroup · EmployeePayrollAssignment
+// PayrollPeriod binding (nullable FKs + backfill)
+// ═══════════════════════════════════════════════════════════
+
+/// Operational location under a client company (and optional project).
+/// Does not replace Project — a project may have many sites.
+model Site {
+  id            String           @id @default(uuid()) @db.Uuid
+  companyId     String           @map("company_id") @db.Uuid
+  projectId     String?          @map("project_id") @db.Uuid
+  code          String
+  name          String
+  address       String?
+  city          String?
+  province      String?
+  postalCode    String?          @map("postal_code")
+  timezone      String           @default("Asia/Jakarta")
+  status        MasterDataStatus @default(ACTIVE)
+  effectiveFrom DateTime         @default(now()) @map("effective_from") @db.Date
+  effectiveTo   DateTime?        @map("effective_to") @db.Date
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  payrollGroups PayrollGroup[]
+  payrollAssignments EmployeePayrollAssignment[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([projectId])
+  @@index([status])
+  @@map("sites")
+  @@schema("proqpay")
+}
+
+/// Defines how payroll periods are cut (weekly / monthly / custom config JSON).
+/// customConfig stores safe JSON only — never executable code.
+model PayCycle {
+  id                String            @id @default(uuid()) @db.Uuid
+  companyId         String            @map("company_id") @db.Uuid
+  code              String
+  name              String
+  frequency         PayCycleFrequency @default(MONTHLY)
+  /// Human-readable period definition e.g. "calendar_month" | "1-15/16-EOM"
+  periodDefinition  String            @default("calendar_month") @map("period_definition")
+  cutoffDay         Int               @default(25) @map("cutoff_day")
+  paymentDay        Int               @default(28) @map("payment_day")
+  /// Days after period end for approval deadline (default 2)
+  approvalLagDays   Int               @default(2) @map("approval_lag_days")
+  timezone          String            @default("Asia/Jakarta")
+  status            MasterDataStatus  @default(ACTIVE)
+  /// Safe JSON config for CUSTOM frequency (e.g. { "days": [1,15] })
+  customConfig      String?           @map("custom_config")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollGroups     PayrollGroup[]
+  payrollPeriods    PayrollPeriod[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([status])
+  @@map("pay_cycles")
+  @@schema("proqpay")
+}
+
+/// Population processed together in a payroll run.
+model PayrollGroup {
+  id              String           @id @default(uuid()) @db.Uuid
+  companyId       String           @map("company_id") @db.Uuid
+  payCycleId      String           @map("pay_cycle_id") @db.Uuid
+  projectId       String?          @map("project_id") @db.Uuid
+  siteId          String?          @map("site_id") @db.Uuid
+  code            String
+  name            String
+  currency        String           @default("IDR")
+  status          MasterDataStatus @default(ACTIVE)
+  effectiveFrom   DateTime         @default(now()) @map("effective_from") @db.Date
+  effectiveTo     DateTime?        @map("effective_to") @db.Date
+  /// Policy notes e.g. "cutoff = cycle.cutoffDay"
+  cutoffPolicy    String?          @map("cutoff_policy")
+  paymentPolicy   String?          @map("payment_policy")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payCycle        PayCycle         @relation(fields: [payCycleId], references: [id], onDelete: Restrict)
+  project         Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  site            Site?            @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  assignments     EmployeePayrollAssignment[]
+  payrollPeriods  PayrollPeriod[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([payCycleId])
+  @@index([projectId])
+  @@index([siteId])
+  @@index([status])
+  @@map("payroll_groups")
+  @@schema("proqpay")
+}
+
+/// Effective-dated employee membership in a payroll group (preserves history).
+model EmployeePayrollAssignment {
+  id             String           @id @default(uuid()) @db.Uuid
+  employeeId     String           @map("employee_id") @db.Uuid
+  payrollGroupId String           @map("payroll_group_id") @db.Uuid
+  projectId      String?          @map("project_id") @db.Uuid
+  siteId         String?          @map("site_id") @db.Uuid
+  positionId     String?          @map("position_id") @db.Uuid
+  costCenterId   String?          @map("cost_center_id") @db.Uuid
+  effectiveFrom  DateTime         @map("effective_from") @db.Date
+  effectiveTo    DateTime?        @map("effective_to") @db.Date
+  status         AssignmentStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payrollGroup   PayrollGroup     @relation(fields: [payrollGroupId], references: [id], onDelete: Cascade)
+  project        Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  site           Site?            @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  position       Position?        @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  costCenter     CostCenter?      @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@index([payrollGroupId])
+  @@index([status])
+  @@index([effectiveFrom, effectiveTo])
+  @@map("employee_payroll_assignments")
   @@schema("proqpay")
 }

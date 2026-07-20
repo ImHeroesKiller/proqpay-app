@@ -26,7 +26,9 @@ export type AppModule =
   | "receivables"
   | "client_payments"
   | "treasury"
-  | "collection";
+  | "collection"
+  /** I1 Master Data */
+  | "master_data";
 
 /** Internal commercial / confidential modules. */
 export const CONFIDENTIAL_MODULES: AppModule[] = [
@@ -68,6 +70,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "capital_partners",
     "capital_allocations",
     "roadmap",
+    "master_data",
     ...TREASURY_CORE,
   ],
   DIRECTOR: [
@@ -89,6 +92,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "pricing",
     "capital_partners",
     "capital_allocations",
+    "master_data",
     ...TREASURY_CORE,
   ],
   PAYROLL_ADMIN: [
@@ -106,6 +110,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "audit",
     "settings",
     "invoices",
+    "master_data",
   ],
   PAYROLL_MANAGER: [
     "dashboard",
@@ -122,6 +127,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "audit",
     "settings",
     "invoices",
+    "master_data",
   ],
   PAYROLL_OPERATOR: [
     "dashboard",
@@ -132,6 +138,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payment_instructions",
     "payment_confirmation",
     "reports",
+    "master_data",
   ],
   FINANCE: [
     "dashboard",
@@ -205,8 +212,9 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "audit",
     "invoices",
     "receivables",
+    "master_data",
   ],
-  VIEWER: ["dashboard", "payroll", "reports"],
+  VIEWER: ["dashboard", "payroll", "reports", "master_data"],
   CLIENT: ["dashboard", "invoices", "receivables", "client_payments"],
 };
 

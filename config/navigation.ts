@@ -74,6 +74,14 @@ const allNav: NavItem[] = [
     keywords: ["company", "tenant"],
   },
   {
+    title: "Master Data",
+    href: "/admin/master-data/clients",
+    icon: Building2,
+    module: "master_data",
+    group: "administration",
+    keywords: ["site", "payroll group", "pay cycle", "client"],
+  },
+  {
     title: "Projects",
     href: "/projects",
     icon: FolderKanban,
