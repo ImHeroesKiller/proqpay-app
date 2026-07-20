@@ -81,16 +81,16 @@ export function Sidebar({
             className={cn("block min-w-0", isCollapsed && "text-center")}
           >
             {isCollapsed ? (
-              <span className="text-sm font-bold tracking-tight">
-                P<span className="text-orange">Q</span>
+              <span className="font-heading text-sm font-bold tracking-tight text-white">
+                PQ
               </span>
             ) : (
               <>
-                <div className="text-[15px] font-semibold tracking-tight">
-                  Pro<span className="text-orange">Q</span>Pay
+                <div className="font-heading text-[15px] font-bold tracking-tight text-white">
+                  ProQPay
                 </div>
-                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">
-                  MSG Technology
+                <p className="mt-1 text-[10px] font-medium leading-snug text-white/50">
+                  Enterprise Payroll Operating System
                 </p>
               </>
             )}
@@ -193,7 +193,7 @@ export function Sidebar({
           ) : null}
           {!isCollapsed ? (
             <p className="px-2 text-[10px] leading-snug text-white/35">
-              Enterprise Payroll OS · PT Mandiri Semesta Gemilang
+              Fortune-grade payroll control plane
             </p>
           ) : null}
         </div>
