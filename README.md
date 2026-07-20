@@ -2,8 +2,12 @@
 
 **An MSG Technology Product** by PT Mandiri Semesta Gemilang.
 
-Corporate site: https://msg-os.com  
-App (planned): https://msg-os.com/app
+| Environment | URL |
+|-------------|-----|
+| Corporate site (MSG) | https://www.msg-os.com |
+| ProQPay app (production) | https://proqpay.msg-os.com |
+| Login | https://proqpay.msg-os.com/login |
+| Local dev | http://localhost:3001 |
 
 This is **not** an HRIS, ERP, or accounting suite. It is an **Enterprise Payroll Operating System**.
 
@@ -57,15 +61,25 @@ pnpm build
 
 ## Database
 
-Prisma schema targets **PostgreSQL**.
+Prisma → **Supabase PostgreSQL** (schema `proqpay`).
 
 ```bash
-# optional with Docker
-docker compose up -d db
 pnpm db:push
+pnpm db:seed
 ```
 
-v1 UI is driven by TypeScript seed data so the app runs without a live database.
+### Production env (Vercel)
+
+Set at least:
+
+- `AUTH_SECRET`, `AUTH_TRUST_HOST=true`
+- `NEXTAUTH_URL` / `AUTH_URL` = `https://proqpay.msg-os.com`
+- `NEXT_PUBLIC_APP_URL` = `https://proqpay.msg-os.com`
+- `DATABASE_URL` (pooler `:6543` + `pgbouncer=true`)
+- `DIRECT_URL` (pooler `:5432`)
+- Supabase URL + keys as needed
+
+See `.env.example` for the full list.
 
 ## Architecture
 
