@@ -12,8 +12,22 @@ export type PerfMeta = {
   operation?: string;
   queryCount?: number;
   recordCount?: number;
+  requestId?: string;
+  cacheStatus?: string;
+  coldStart?: boolean;
+  region?: string;
   [key: string]: string | number | boolean | undefined;
 };
+
+/** Short non-PII request correlation id for structured [PERF] lines. */
+export function createRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function runtimeExtras(): Pick<PerfMeta, "region"> {
+  const region = process.env.VERCEL_REGION;
+  return region ? { region } : {};
+}
 
 export async function measure<T>(
   label: string,
@@ -32,6 +46,7 @@ export async function measure<T>(
     console.info("[PERF]", {
       label,
       durationMs,
+      ...runtimeExtras(),
       ...sanitizeMeta(meta),
     });
   }
@@ -41,6 +56,7 @@ export function perfLog(label: string, meta?: PerfMeta & { durationMs?: number }
   if (!isPerfLoggingEnabled()) return;
   console.info("[PERF]", {
     label,
+    ...runtimeExtras(),
     ...sanitizeMeta(meta),
   });
 }
@@ -53,7 +69,8 @@ function sanitizeMeta(
   for (const [k, v] of Object.entries(meta)) {
     if (v === undefined) continue;
     // Block accidental secret-like keys
-    if (/password|token|secret|authorization|cookie|hash/i.test(k)) continue;
+    if (/password|token|secret|authorization|cookie|hash|database_url/i.test(k))
+      continue;
     out[k] = v;
   }
   return out;

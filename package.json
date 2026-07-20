@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test:utils": "node scripts/check-utils.mjs",
     "bench:dashboard": "tsx scripts/bench-dashboard.mjs",
+    "bench:routes": "tsx scripts/bench-routes.mjs",
     "check": "pnpm lint && pnpm typecheck && pnpm test:utils && pnpm build",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
