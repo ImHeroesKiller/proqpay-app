@@ -20,7 +20,7 @@ export default async function ProjectsPage() {
       <div className="grid gap-3 md:grid-cols-2">
         {projects.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No projects yet. Seed data includes a demo project after reseed.
+            No projects yet. Create a managed payroll project for an active client.
           </p>
         ) : null}
         {projects.map((p) => (

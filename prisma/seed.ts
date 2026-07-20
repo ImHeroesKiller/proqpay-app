@@ -1,5 +1,6 @@
 /**
- * Seeds ProQPay multi-tenant demo data into Supabase PostgreSQL (schema: proqpay).
+ * @deprecated Legacy seed — prefer `prisma/seed-realistic.ts` via `pnpm seed:realistic`.
+ * Seeds older multi-tenant sample data into Supabase PostgreSQL (schema: proqpay).
  * Safe to re-run: uses deterministic IDs + upsert.
  */
 import { PrismaClient, type Role } from "@prisma/client";

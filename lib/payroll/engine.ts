@@ -88,7 +88,7 @@ export function calcBpjs(
   return { employee: roundMoney(employee), employer: roundMoney(employer) };
 }
 
-/** Simplified monthly TER-style withholding for demo/ops V1. */
+/** Simplified monthly TER-style withholding for operations V1. */
 export function calcPph21(
   taxableMonthly: number,
   opts: { hasNpwp?: boolean; terRate?: number; surcharge?: number } = {},

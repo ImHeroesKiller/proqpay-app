@@ -38,7 +38,7 @@ export default async function AttendancePage() {
                     colSpan={6}
                     className="px-4 py-6 text-muted-foreground"
                   >
-                    No attendance records. Reseed to load demo attendance, or
+                    No attendance records yet. Import or create attendance, or
                     import in a later release.
                   </td>
                 </tr>

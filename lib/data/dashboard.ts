@@ -10,6 +10,7 @@
  */
 
 import { cache } from "react";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatRupiah } from "@/lib/utils";
 import type { AlertItem, KpiCard, Role } from "@/types";
@@ -75,9 +76,37 @@ const PENDING_CONFIRMATION_STATUSES = [
   "UNDER_VERIFICATION",
 ] as const;
 
-function companyFilterFromScope(scope: SessionScope): { companyId?: string } {
+/**
+ * Operational payroll scope:
+ * - Tenant-bound users: their companyId only
+ * - Org-wide roles: EXISTING active clients only (exclude INTERNAL + PROSPECT)
+ */
+function operationalPayrollWhere(scope: SessionScope): Prisma.PayrollPeriodWhereInput {
   const where = companyWhere(scope);
-  return where.companyId ? { companyId: where.companyId } : {};
+  if (where.companyId) {
+    return { companyId: where.companyId };
+  }
+  return {
+    company: {
+      clientType: "EXISTING",
+      lifecycleStatus: "ACTIVE",
+    },
+  };
+}
+
+function operationalCompanyFilter(
+  scope: SessionScope,
+): Prisma.PaymentConfirmationWhereInput {
+  const where = companyWhere(scope);
+  if (where.companyId) {
+    return { companyId: where.companyId };
+  }
+  return {
+    company: {
+      clientType: "EXISTING",
+      lifecycleStatus: "ACTIVE",
+    },
+  };
 }
 
 function startOfUtcDay(): Date {
@@ -150,8 +179,17 @@ async function fetchDashboardBundle(
 ): Promise<DashboardBundle> {
   const counter = createQueryCounter();
   const started = performance.now();
-  const companyFilter = companyFilterFromScope(scope);
-  const employeeWhere = companyWhere(scope);
+  const payrollWhere = operationalPayrollWhere(scope);
+  const confWhere = operationalCompanyFilter(scope);
+  const bound = companyWhere(scope);
+  const employeeWhere: Prisma.EmployeeWhereInput = bound.companyId
+    ? { companyId: bound.companyId }
+    : {
+        company: {
+          clientType: "EXISTING",
+          lifecycleStatus: "ACTIVE",
+        },
+      };
   const executive = canViewExecutiveDashboard(scope.role);
   const viewWc = canViewWorkingCapitalLimits(scope.role);
   const viewSales = canViewSalesPipeline(scope.role);
@@ -191,13 +229,12 @@ async function fetchDashboardBundle(
         // 2 — payroll pipeline + executive period counts (one groupBy)
         prisma.payrollPeriod.groupBy({
           by: ["status"],
-          where: companyFilter,
+          where: payrollWhere,
           _count: { _all: true },
         }),
         // 3 — recent periods: KPI current + active cycle + alert waiting
-        // light select, no bank join (was full findMany + include bank)
         prisma.payrollPeriod.findMany({
-          where: companyFilter,
+          where: payrollWhere,
           orderBy: { periodStart: "desc" },
           take: 50,
           select: {
@@ -211,45 +248,56 @@ async function fetchDashboardBundle(
             employeeCount: true,
           },
         }),
-        // 4 — confirmation status counts (waiting verification + rejected)
+        // 4 — confirmation status counts
         prisma.paymentConfirmation.groupBy({
           by: ["status"],
-          where: companyFilter,
+          where: confWhere,
           _count: { _all: true },
         }),
         // 5 — verified today
         prisma.paymentConfirmation.count({
           where: {
-            ...companyFilter,
+            ...confWhere,
             status: "VERIFIED",
             verifiedAt: { gte: startOfUtcDay() },
           },
         }),
-        // 6 — pending approvals (preserve unscoped PENDING semantics)
+        // 6 — pending approvals
         prisma.approvalStep.count({ where: { status: "PENDING" } }),
-        // 7 — payment instructions pending
+        // 7 — payment instructions pending (existing clients only when org-wide)
         prisma.paymentInstruction.count({
           where: {
             ...(scope.companyId && scope.role !== "SUPER_ADMIN"
               ? { companyId: scope.companyId }
-              : {}),
+              : {
+                  company: {
+                    clientType: "EXISTING",
+                    lifecycleStatus: "ACTIVE",
+                  },
+                }),
             executionStatus: { in: ["DRAFT", "READY"] },
           },
         }),
-        // 8 — failed instruction items (preserve unscoped semantics)
+        // 8 — failed instruction items
         prisma.paymentInstructionItem.count({
           where: { status: "FAILED" },
         }),
-        // 9–11 — role-gated finance/commercial (no-op promises when not needed)
+        // 9–11 — role-gated finance/commercial
         executive && viewWc
           ? prisma.workingCapitalRequest.count({
               where: {
-                ...companyFilter,
+                ...(scope.companyId && scope.role !== "SUPER_ADMIN"
+                  ? { companyId: scope.companyId }
+                  : {
+                      company: {
+                        clientType: "EXISTING",
+                        lifecycleStatus: "ACTIVE",
+                      },
+                    }),
                 settlementStatus: { in: ["PENDING", "PARTIAL"] },
               },
             })
           : Promise.resolve(0),
-        // Funding exposure — preserve prior status-only filter (no company scope)
         executive && viewWc
           ? prisma.workingCapitalRequest.aggregate({
               where: {
@@ -260,15 +308,24 @@ async function fetchDashboardBundle(
               _sum: { approvedAmount: true },
             })
           : Promise.resolve({ _sum: { approvedAmount: null } }),
+        // Prospect pipeline uses estimatedPayrollValue sum (not weighted only)
         executive && viewSales
           ? prisma.salesOpportunity.aggregate({
               where: { status: "OPEN" },
-              _sum: { weightedPipelineValue: true },
+              _sum: {
+                estimatedPayrollValue: true,
+                weightedPipelineValue: true,
+              },
             })
-          : Promise.resolve({ _sum: { weightedPipelineValue: null } }),
-        // 12 — chart points
+          : Promise.resolve({
+              _sum: {
+                estimatedPayrollValue: null,
+                weightedPipelineValue: null,
+              },
+            }),
+        // 12 — chart points (client payroll only)
         prisma.payrollPeriod.findMany({
-          where: { ...companyFilter, totalNet: { gt: 0 } },
+          where: { ...payrollWhere, totalNet: { gt: 0 }, status: "CLOSED" },
           orderBy: { periodStart: "asc" },
           take: 6,
           select: {
@@ -409,12 +466,16 @@ async function fetchDashboardBundle(
     }
 
     if (viewSales) {
+      const estimated = Number(
+        weightedPipeline._sum.estimatedPayrollValue ?? 0,
+      );
+      const weighted = Number(
+        weightedPipeline._sum.weightedPipelineValue ?? 0,
+      );
       kpis.push({
-        label: "Weighted pipeline",
-        value: formatRupiah(
-          Number(weightedPipeline._sum.weightedPipelineValue ?? 0),
-        ),
-        change: "Internal commercial only",
+        label: "Prospect pipeline",
+        value: formatRupiah(estimated),
+        change: `Weighted ${formatRupiah(weighted)} · not processed payroll`,
         trend: "up",
         href: "/sales",
       });

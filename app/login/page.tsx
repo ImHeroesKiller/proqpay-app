@@ -13,14 +13,15 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/data/constants";
+import { DEMO_ACCOUNTS } from "@/lib/data/constants";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
+  const rawCallback = params.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = rawCallback.startsWith("/") ? rawCallback : "/dashboard";
   const [email, setEmail] = useState("siti.rahayu@msg-os.com");
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +39,7 @@ function LoginForm() {
       setError("Invalid email or password.");
       return;
     }
-    router.push(callbackUrl.startsWith("/") ? callbackUrl : "/dashboard");
+    router.push(callbackUrl);
     router.refresh();
   };
 
@@ -61,8 +62,7 @@ function LoginForm() {
             <CardHeader>
               <CardTitle>Sign in</CardTitle>
               <CardDescription>
-                Authorized operators only. Session expires after 8 hours of
-                inactivity window.
+                Authorized operators only. Sessions expire after 8 hours.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -101,28 +101,30 @@ function LoginForm() {
                   {loading ? "Signing in…" : "Sign in"}
                 </Button>
               </form>
-              <div className="mt-6 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                <p className="font-semibold text-foreground">Demo accounts</p>
-                <p className="mt-1">
-                  Shared demo password is shown only in this sandbox environment.
-                </p>
-                <p className="mt-1 font-mono text-[11px] text-foreground/80">
-                  Password: {DEMO_PASSWORD}
-                </p>
-                <ul className="mt-2 space-y-1">
-                  {DEMO_ACCOUNTS.slice(0, 5).map((u) => (
-                    <li key={u.email}>
-                      <button
-                        type="button"
-                        className="text-left hover:text-orange focus-visible:text-orange"
-                        onClick={() => setEmail(u.email)}
-                      >
-                        {u.email} · {u.role.replaceAll("_", " ")}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {process.env.NODE_ENV === "development" ? (
+                <div className="mt-6 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground">
+                    Operator accounts (local development)
+                  </p>
+                  <p className="mt-1">
+                    Use the shared operator password from your environment seed
+                    configuration. Select an account to fill email.
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {DEMO_ACCOUNTS.map((u) => (
+                      <li key={u.email}>
+                        <button
+                          type="button"
+                          className="text-left hover:text-orange focus-visible:text-orange"
+                          onClick={() => setEmail(u.email)}
+                        >
+                          {u.email} · {u.role.replaceAll("_", " ")}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
           <p className="text-center text-[11px] text-muted-foreground">

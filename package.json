@@ -15,6 +15,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "seed:realistic": "tsx prisma/seed-realistic.ts",
     "db:studio": "prisma studio",
     "format": "prettier --write ."
   },
