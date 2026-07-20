@@ -29,16 +29,16 @@ export function formatCompactIDR(
   const abs = Math.abs(value);
 
   if (abs >= 1_000_000_000_000) {
-    return `${sign}${formatUnit(abs / 1_000_000_000_000, options.maxFractionDigits ?? 2)} Tri`;
+    return `${sign}Rp${formatUnit(abs / 1_000_000_000_000, options.maxFractionDigits ?? 2)} Tri`;
   }
   if (abs >= 1_000_000_000) {
-    return `${sign}${formatUnit(abs / 1_000_000_000, options.maxFractionDigits ?? 1)} Bio`;
+    return `${sign}Rp${formatUnit(abs / 1_000_000_000, options.maxFractionDigits ?? 1)} Bio`;
   }
   if (abs >= 1_000_000) {
     const whole = abs % 1_000_000 === 0;
-    return `${sign}${formatUnit(abs / 1_000_000, options.maxFractionDigits ?? (whole ? 0 : 1))} Mio`;
+    return `${sign}Rp${formatUnit(abs / 1_000_000, options.maxFractionDigits ?? (whole ? 0 : 1))} Mio`;
   }
-  return `${sign}${formatFullIDR(abs).replace(/^Rp/, "Rp")}`;
+  return formatFullIDR(value);
 }
 
 export function formatFullIDR(value: number | null | undefined): string {

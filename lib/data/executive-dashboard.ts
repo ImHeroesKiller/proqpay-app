@@ -22,6 +22,10 @@ import {
   mapTitleForPeriod,
 } from "@/lib/format/idr";
 import { routes } from "@/lib/routes/app-routes";
+import {
+  buildReceivablesSummary,
+  type ReceivablesSummary,
+} from "@/lib/data/receivables";
 
 export type ExecKpi = {
   id: string;
@@ -132,12 +136,7 @@ export type ExecutiveDashboardData = {
   recentCycles: RecentCycleRow[];
   insights: ExecInsight[];
   alerts: ExecAlert[];
-  coverage: {
-    year: number;
-    title: string;
-    status: "Actual" | "Planned";
-    focus: string[];
-  }[];
+  receivables: ReceivablesSummary;
   validation: {
     historicalPayroll: number;
     junePayroll: number;
@@ -269,6 +268,7 @@ async function fetchExecutiveDashboard(
     periods,
     sales,
     pendingApprovals,
+    wcRequests,
   ] = await Promise.all([
     prisma.company.findMany({
       where: companyFilter,
@@ -307,6 +307,7 @@ async function fetchExecutiveDashboard(
         fundingModel: true,
         companyId: true,
         periodStart: true,
+        payDate: true,
         company: { select: { name: true, clientType: true } },
         projectId: true,
       },
@@ -325,8 +326,26 @@ async function fetchExecutiveDashboard(
         })
       : Promise.resolve([]),
     prisma.approvalStep.count({ where: { status: "PENDING" } }),
+    prisma.workingCapitalRequest.findMany({
+      where:
+        companyFilter && typeof companyFilter.id === "string"
+          ? { companyId: companyFilter.id }
+          : undefined,
+      select: {
+        id: true,
+        payrollPeriodId: true,
+        periodName: true,
+        companyId: true,
+        approvedAmount: true,
+        repaidAmount: true,
+        status: true,
+        settlementStatus: true,
+        dueDate: true,
+        company: { select: { name: true } },
+      },
+    }),
   ]);
-  counter.inc(6);
+  counter.inc(7);
 
   type Co = (typeof companies)[0] & { geo: GeoRef };
   const companiesGeo: Co[] = companies.map((c) => ({
@@ -842,6 +861,76 @@ async function fetchExecutiveDashboard(
     });
   }
 
+  const receivables = buildReceivablesSummary({
+    periods: periodsGeo.map((p) => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      fundingModel: p.fundingModel,
+      totalNet: p.totalNetN,
+      companyId: p.companyId,
+      companyName: p.company.name,
+      clientType: p.company.clientType,
+      payDate: p.payDate,
+    })),
+    wcRequests: wcRequests.map((w) => ({
+      id: w.id,
+      payrollPeriodId: w.payrollPeriodId,
+      periodName: w.periodName,
+      companyId: w.companyId,
+      companyName: w.company?.name ?? null,
+      approvedAmount: num(w.approvedAmount),
+      repaidAmount: num(w.repaidAmount),
+      status: w.status,
+      settlementStatus: w.settlementStatus,
+      dueDate: w.dueDate,
+    })),
+    selectedPeriodId: selectedPeriod?.id,
+    routes: {
+      payrollDetail: (id) => routes.payroll.detail(id),
+      workingCapital: () => routes.workingCapital.list(),
+      payrollList: (q) =>
+        routes.payroll.list({
+          status: q?.status,
+        }),
+    },
+  });
+
+  if (receivables.draftFundingRequirement > 0 && draftPeriod) {
+    alerts.push({
+      id: "a-fund-req",
+      type: "Payroll period requires funding plan",
+      severity: "info",
+      entity: draftPeriod.name,
+      detail: `Draft funding requirement ${formatCompactIDR(receivables.draftFundingRequirement)} — not yet outstanding AR.`,
+      href: routes.payroll.detail(draftPeriod.id),
+      cta: "Open draft period",
+      period: draftPeriod.name,
+    });
+  }
+  if (receivables.workingCapitalUsed > 0) {
+    alerts.push({
+      id: "a-wc",
+      type: "Working capital exposure present",
+      severity: "medium",
+      entity: "Treasury",
+      detail: `Working capital used ${formatCompactIDR(receivables.workingCapitalUsed)}.`,
+      href: routes.workingCapital.list(),
+      cta: "Open working capital",
+    });
+  }
+  if (receivables.overdue > 0) {
+    alerts.push({
+      id: "a-od",
+      type: "Receivable overdue",
+      severity: "high",
+      entity: "Working capital settlement",
+      detail: `Overdue exposure ${formatCompactIDR(receivables.overdue)}.`,
+      href: routes.workingCapital.list(),
+      cta: "Review overdue",
+    });
+  }
+
   const breadcrumb = ["Indonesia"];
   if (filters.province && filters.province !== "ALL") {
     breadcrumb.push(
@@ -904,26 +993,7 @@ async function fetchExecutiveDashboard(
     recentCycles,
     insights,
     alerts,
-    coverage: [
-      {
-        year: 1,
-        title: "Core Market Establishment",
-        status: "Actual",
-        focus: ["Jabodetabek", "DKI Jakarta", "Banten", "Jawa Barat"],
-      },
-      {
-        year: 2,
-        title: "Java Expansion",
-        status: "Planned",
-        focus: ["Jawa Tengah", "Jawa Timur", "Industrial corridors"],
-      },
-      {
-        year: 3,
-        title: "National Expansion",
-        status: "Planned",
-        focus: ["Sumatera", "Kalimantan", "Sulawesi", "Bali"],
-      },
-    ],
+    receivables,
     validation: {
       historicalPayroll,
       junePayroll,

@@ -132,6 +132,12 @@ export const routes = {
     },
   },
 
+  workingCapital: {
+    list(filters: { status?: string | null } = {}) {
+      return `/working-capital${qs({ status: filters.status })}`;
+    },
+  },
+
   audit: {
     list() {
       return `/audit`;
