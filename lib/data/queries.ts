@@ -211,6 +211,10 @@ export async function getCapitalAllocations(scope: SessionScope) {
   return rows.map(mapCapitalAllocation);
 }
 
+/**
+ * @deprecated Dashboard uses consolidated `loadDashboardBundle` in `lib/data/dashboard.ts`.
+ * Kept for reference/tests — prefer the bundle loader to avoid sequential query waves.
+ */
 export async function getDashboardKpis(
   role: Role,
   scope?: SessionScope,
@@ -382,6 +386,7 @@ export async function getDashboardKpis(
   return ops;
 }
 
+/** @deprecated Prefer `loadDashboardBundle` — sequential alert queries. */
 export async function getDashboardAlerts(
   scope?: SessionScope,
 ): Promise<AlertItem[]> {
