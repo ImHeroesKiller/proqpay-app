@@ -44,6 +44,17 @@ const map: Record<string, { label: string; variant: "success" | "warning" | "dan
   PARTIALLY_FAILED: { label: "Partial fail", variant: "danger" },
   SELF_FUNDED: { label: "Client-funded", variant: "info" },
   WORKING_CAPITAL: { label: "Working capital", variant: "accent" },
+  UPLOADED: { label: "Uploaded", variant: "info" },
+  VERIFIED: { label: "Verified", variant: "success" },
+  NEED_REVISION: { label: "Need revision", variant: "warning" },
+  WAITING_CLIENT_TRANSFER: { label: "Waiting transfer", variant: "warning" },
+  TRANSFER_PROOF_UPLOADED: { label: "Proof uploaded", variant: "info" },
+  UNDER_VERIFICATION: { label: "Under verification", variant: "warning" },
+  CLOSED: { label: "Closed", variant: "success" },
+  PAYMENT_INSTRUCTION_GENERATED: {
+    label: "Instruction ready",
+    variant: "info",
+  },
 };
 
 export function StatusBadge({ status }: { status: AnyStatus }) {

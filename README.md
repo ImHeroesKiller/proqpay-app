@@ -21,8 +21,14 @@ This is **not** an HRIS, ERP, or accounting suite. It is an **Enterprise Payroll
 
 ## Payroll models
 
-1. **Client-funded (default)** — funds remain in the client bank; ProQPay orchestrates validation → approval → payment instruction → execution → reconciliation → audit.  
-2. **Working capital (optional)** — separately approved funding request → capital allocation → funded execution → settlement. Never required for every period.
+1. **Client self-transfer (default)** — validation → approval → payment instruction → **client transfers from client bank** → **upload proof** → ProQPay verifies → payroll closed.  
+2. **Working capital (optional)** — funding request → partner funds **client bank** → client transfers to employees → proof → verify → settlement / revenue share → closed.  
+
+**Never:** Funding Partner → Employee. Always: (Partner →) Client → Employee.
+
+### Payment Confirmation Engine
+
+`/payment-confirmation` — upload proof (PDF/PNG/JPG, private Supabase Storage `payment-proof`, signed URLs only), verification workflow, audit.
 
 ## Modules
 

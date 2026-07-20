@@ -41,14 +41,17 @@ export default async function PayrollDetailPage({
     <div>
       <PageHeader
         title={period.name}
-        description="Payroll run detail: funding model, source of funds, and execution path."
+        description="After instruction, client transfers from the client bank and uploads proof. Verification closes payroll (or opens WC settlement)."
         actions={
           <>
             <Button asChild variant="outline" size="sm">
               <Link href="/payroll">Back</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href="/payment-instructions">Payment instructions</Link>
+              <Link href="/payment-instructions">Instructions</Link>
+            </Button>
+            <Button asChild variant="accent" size="sm">
+              <Link href="/payment-confirmation">Confirmation</Link>
             </Button>
           </>
         }

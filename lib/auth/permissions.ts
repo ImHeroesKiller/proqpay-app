@@ -7,7 +7,9 @@ export type AppModule =
   | "payroll"
   | "approval"
   | "payment_instructions"
+  | "payment_confirmation"
   | "working_capital"
+  | "disbursement"
   | "reports"
   | "audit"
   | "settings"
@@ -34,7 +36,9 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payroll",
     "approval",
     "payment_instructions",
+    "payment_confirmation",
     "working_capital",
+    "disbursement",
     "reports",
     "audit",
     "settings",
@@ -51,7 +55,9 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payroll",
     "approval",
     "payment_instructions",
+    "payment_confirmation",
     "working_capital",
+    "disbursement",
     "reports",
     "audit",
     "settings",
@@ -68,7 +74,9 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payroll",
     "approval",
     "payment_instructions",
+    "payment_confirmation",
     "working_capital",
+    "disbursement",
     "reports",
     "audit",
     "settings",
@@ -82,7 +90,9 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payroll",
     "approval",
     "payment_instructions",
+    "payment_confirmation",
     "working_capital",
+    "disbursement",
     "reports",
     "audit",
     "settings",
@@ -93,6 +103,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payroll",
     "approval",
     "payment_instructions",
+    "payment_confirmation",
     "reports",
     "audit",
     "roadmap",
@@ -101,11 +112,12 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "dashboard",
     "employees",
     "payroll",
+    "payment_confirmation",
     "reports",
     "settings",
     "roadmap",
   ],
-  VIEWER: ["dashboard", "payroll", "reports", "roadmap"],
+  VIEWER: ["dashboard", "payroll", "payment_confirmation", "reports", "audit", "roadmap"],
 };
 
 export function canAccessModule(role: Role, module: AppModule): boolean {

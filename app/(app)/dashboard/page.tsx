@@ -49,16 +49,16 @@ export default async function DashboardPage() {
     <div>
       <PageHeader
         title={executive ? "Operations & executive dashboard" : "Operations dashboard"}
-        description="Client-funded payroll is the default path. Working capital is an optional branch after approval."
+        description="After payment instruction, the client transfers from the client bank and uploads proof. ProQPay verifies before payroll closes."
         actions={
           <>
             <Button asChild variant="outline" size="sm">
-              <Link href="/payroll">View payroll</Link>
+              <Link href="/payment-instructions">Instructions</Link>
             </Button>
             <Button asChild variant="accent" size="sm">
-              <Link href="/payment-instructions">
+              <Link href="/payment-confirmation">
                 <Plus className="h-3.5 w-3.5" />
-                Payment instructions
+                Payment confirmation
               </Link>
             </Button>
           </>
@@ -158,8 +158,8 @@ export default async function DashboardPage() {
               { label: "Generate payroll", href: "/payroll" },
               { label: "Review approvals", href: "/approval" },
               { label: "Payment instructions", href: "/payment-instructions" },
+              { label: "Payment confirmation", href: "/payment-confirmation" },
               { label: "Working capital", href: "/working-capital" },
-              { label: "Export reports", href: "/reports" },
               { label: "Audit trail", href: "/audit" },
             ].map((action) => (
               <Button key={action.href} asChild variant="outline" size="sm">

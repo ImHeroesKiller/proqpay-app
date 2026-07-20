@@ -216,24 +216,50 @@ export async function getDashboardKpis(
   scope?: SessionScope,
 ): Promise<KpiCard[]> {
   const where = scope ? companyWhere(scope) : {};
-  const [employees, periods, pendingApprovals, selfFunded, wcFunded] =
-    await Promise.all([
-      prisma.employee.count({
-        where: { ...where, status: { in: ["ACTIVE", "PROBATION"] } },
-      }),
-      prisma.payrollPeriod.findMany({
-        where,
-        orderBy: { periodStart: "desc" },
-        take: 6,
-      }),
-      prisma.approvalStep.count({ where: { status: "PENDING" } }),
-      prisma.payrollPeriod.count({
-        where: { ...where, fundingModel: "SELF_FUNDED" },
-      }),
-      prisma.payrollPeriod.count({
-        where: { ...where, fundingModel: "WORKING_CAPITAL" },
-      }),
-    ]);
+  const companyFilter = where.companyId
+    ? { companyId: where.companyId }
+    : {};
+
+  const [
+    employees,
+    periods,
+    pendingApprovals,
+    waitingTransfer,
+    waitingVerification,
+    rejectedProof,
+    verifiedToday,
+  ] = await Promise.all([
+    prisma.employee.count({
+      where: { ...where, status: { in: ["ACTIVE", "PROBATION"] } },
+    }),
+    prisma.payrollPeriod.findMany({
+      where,
+      orderBy: { periodStart: "desc" },
+      take: 6,
+    }),
+    prisma.approvalStep.count({ where: { status: "PENDING" } }),
+    prisma.payrollPeriod.count({
+      where: { ...companyFilter, status: "WAITING_CLIENT_TRANSFER" },
+    }),
+    prisma.paymentConfirmation.count({
+      where: {
+        ...companyFilter,
+        status: { in: ["UPLOADED", "UNDER_REVIEW"] },
+      },
+    }),
+    prisma.paymentConfirmation.count({
+      where: { ...companyFilter, status: "REJECTED" },
+    }),
+    prisma.paymentConfirmation.count({
+      where: {
+        ...companyFilter,
+        status: "VERIFIED",
+        verifiedAt: {
+          gte: new Date(new Date().toISOString().slice(0, 10)),
+        },
+      },
+    }),
+  ]);
 
   const current =
     periods.find((p) => p.status === "WAITING" || p.status === "APPROVED") ??
@@ -247,74 +273,108 @@ export async function getDashboardKpis(
       label: "Payroll this period",
       value: current ? formatRupiah(Number(current.totalNet)) : formatRupiah(0),
       change: current
-        ? `${current.name} · ${current.fundingModel === "SELF_FUNDED" ? "Client-funded" : "Working capital"}`
+        ? `${current.name} · ${current.fundingModel === "SELF_FUNDED" ? "Self-transfer" : "Working capital"}`
         : "No period",
       trend: "up",
       href: "/payroll",
     },
     {
-      label: "Active employees",
-      value: String(employees),
-      change: probation ? `${probation} on probation` : "All active",
-      trend: "neutral",
-      href: "/employees",
+      label: "Waiting client transfer",
+      value: String(waitingTransfer),
+      change: "Payment instruction issued; client pays employees",
+      trend: waitingTransfer ? "down" : "neutral",
+      href: "/payment-confirmation",
     },
     {
-      label: "Pending approvals",
-      value: String(pendingApprovals),
-      change: pendingApprovals ? "Open steps" : "Clear",
-      trend: pendingApprovals ? "down" : "neutral",
-      href: "/approval",
+      label: "Waiting verification",
+      value: String(waitingVerification),
+      change: rejectedProof
+        ? `${rejectedProof} rejected proof(s)`
+        : "Transfer proofs in review",
+      trend: waitingVerification ? "down" : "neutral",
+      href: "/payment-confirmation",
     },
     {
-      label: "Funding mix",
-      value: `${selfFunded} / ${wcFunded}`,
-      change: "Client-funded / Working capital periods",
-      trend: "neutral",
-      href: "/payroll",
+      label: "Verified today",
+      value: String(verifiedToday),
+      change: pendingApprovals
+        ? `${pendingApprovals} approval step(s) open`
+        : "Confirmations verified",
+      trend: "up",
+      href: "/payment-confirmation",
     },
   ];
 
   if (canViewExecutiveDashboard(role)) {
-    const managed = periods.reduce((s, p) => s + Number(p.totalNet), 0);
-    const clients = await prisma.company.count({
-      where: { lifecycleStatus: "ACTIVE" },
+    const closed = await prisma.payrollPeriod.count({
+      where: { ...companyFilter, status: "CLOSED" },
     });
-    ops.push({
-      label: "Managed payroll (recent)",
-      value: formatRupiah(managed),
-      change: `${clients} active clients`,
-      trend: "up",
-      href: "/clients",
+    const pendingConfirmation = await prisma.payrollPeriod.count({
+      where: {
+        ...companyFilter,
+        status: {
+          in: [
+            "PAYMENT_INSTRUCTION_GENERATED",
+            "WAITING_CLIENT_TRANSFER",
+            "TRANSFER_PROOF_UPLOADED",
+            "UNDER_VERIFICATION",
+          ],
+        },
+      },
+    });
+    const settlementPending = await prisma.workingCapitalRequest.count({
+      where: {
+        ...companyFilter,
+        settlementStatus: { in: ["PENDING", "PARTIAL"] },
+      },
     });
 
-    if (canViewSalesPipeline(role)) {
-      const pipeline = await prisma.salesOpportunity.aggregate({
-        where: { status: "OPEN" },
-        _sum: { weightedPipelineValue: true, estimatedPayrollValue: true },
-      });
-      ops.push({
-        label: "Weighted pipeline",
-        value: formatRupiah(Number(pipeline._sum.weightedPipelineValue ?? 0)),
-        change: `Gross est. ${formatRupiah(Number(pipeline._sum.estimatedPayrollValue ?? 0))}`,
+    ops.push(
+      {
+        label: "Payroll closed",
+        value: String(closed),
+        change: `${employees} active employees · ${probation} probation`,
         trend: "up",
-        href: "/sales",
-      });
-    }
+        href: "/payroll",
+      },
+      {
+        label: "Pending confirmation",
+        value: String(pendingConfirmation),
+        change: "Instruction issued → proof → verify",
+        trend: pendingConfirmation ? "down" : "neutral",
+        href: "/payment-confirmation",
+      },
+    );
 
     if (canViewWorkingCapitalLimits(role)) {
       const exposure = await prisma.workingCapitalRequest.aggregate({
         where: {
-          status: { in: ["APPROVED", "FUNDED", "OUTSTANDING", "SETTLEMENT_DUE"] },
+          status: {
+            in: ["APPROVED", "FUNDED", "OUTSTANDING", "SETTLEMENT_DUE"],
+          },
         },
         _sum: { approvedAmount: true },
       });
       ops.push({
-        label: "WC exposure",
+        label: "Funding exposure",
         value: formatRupiah(Number(exposure._sum.approvedAmount ?? 0)),
-        change: "Approved / outstanding funding",
+        change: `Settlement pending: ${settlementPending}`,
         trend: "down",
         href: "/working-capital",
+      });
+    }
+
+    if (canViewSalesPipeline(role)) {
+      const pipeline = await prisma.salesOpportunity.aggregate({
+        where: { status: "OPEN" },
+        _sum: { weightedPipelineValue: true },
+      });
+      ops.push({
+        label: "Weighted pipeline",
+        value: formatRupiah(Number(pipeline._sum.weightedPipelineValue ?? 0)),
+        change: "Internal commercial only",
+        trend: "up",
+        href: "/sales",
       });
     }
   }

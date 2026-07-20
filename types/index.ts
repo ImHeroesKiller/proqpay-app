@@ -13,7 +13,26 @@ export type PayrollStatus =
   | "APPROVED"
   | "REJECTED"
   | "LOCKED"
-  | "DISBURSED";
+  | "DISBURSED"
+  | "PAYMENT_INSTRUCTION_GENERATED"
+  | "WAITING_CLIENT_TRANSFER"
+  | "TRANSFER_PROOF_UPLOADED"
+  | "UNDER_VERIFICATION"
+  | "VERIFIED"
+  | "CLOSED";
+
+export type PaymentConfirmationStatus =
+  | "UPLOADED"
+  | "UNDER_REVIEW"
+  | "VERIFIED"
+  | "REJECTED"
+  | "NEED_REVISION";
+
+export type PaymentExecutionModel =
+  | "CLIENT_SELF_TRANSFER"
+  | "WORKING_CAPITAL"
+  | "BANK_API"
+  | "MANUAL";
 
 export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -128,6 +147,7 @@ export interface PayrollPeriod {
   fundingStatus: PeriodFundingStatus;
   paymentInstructionStatus: PaymentInstructionStatus;
   reconciliationStatus: ReconciliationStatus;
+  confirmationStatus?: PaymentConfirmationStatus | null;
   executionType?: PaymentExecutionType;
   employeeCount: number;
   totalGross: number;
@@ -198,6 +218,7 @@ export interface PaymentInstructionView {
   payrollPeriodId: string;
   instructionNumber: string;
   fundingModel: PayrollFundingModel;
+  executionModel: PaymentExecutionModel;
   executionType: PaymentExecutionType;
   integrationStatus: BankingIntegrationStatus;
   totalRecords: number;

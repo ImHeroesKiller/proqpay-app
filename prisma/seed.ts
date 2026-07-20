@@ -896,6 +896,7 @@ async function main() {
       payrollPeriodId: junId,
       instructionNumber: "PI-2026-06-001",
       fundingModel: "WORKING_CAPITAL",
+      executionModel: "WORKING_CAPITAL",
       executionType: "PROQPAY_MANAGED_TRANSFER",
       integrationStatus: "SIMULATED",
       sourceBankAccountId: stableId("bank:mandiri"),
@@ -912,6 +913,64 @@ async function main() {
       totalAmount: 123750000,
       executionStatus: "READY",
       integrationStatus: "SIMULATED",
+    },
+  });
+
+
+  // Self-transfer instruction (Mei) — waiting client transfer / confirmation
+  const piMayId = stableId("pi:may");
+  await prisma.paymentInstruction.upsert({
+    where: { id: piMayId },
+    create: {
+      id: piMayId,
+      companyId: COMPANY_ID,
+      payrollPeriodId: mayId,
+      instructionNumber: "PI-2026-05-001",
+      fundingModel: "SELF_FUNDED",
+      executionModel: "CLIENT_SELF_TRANSFER",
+      executionType: "CLIENT_BANK_TRANSFER",
+      integrationStatus: "SIMULATED",
+      sourceBankAccountId: stableId("bank:mandiri"),
+      totalRecords: 12,
+      totalAmount: 121600000,
+      currency: "IDR",
+      approvalStatus: "APPROVED",
+      executionStatus: "READY",
+      generatedById: userIds.siti,
+      generatedAt: new Date("2026-06-04T09:00:00.000Z"),
+      version: 1,
+    },
+    update: {
+      executionModel: "CLIENT_SELF_TRANSFER",
+      executionStatus: "READY",
+    },
+  });
+
+  await prisma.payrollPeriod.update({
+    where: { id: mayId },
+    data: {
+      status: "WAITING_CLIENT_TRANSFER",
+      paymentInstructionStatus: "READY",
+      fundingModel: "SELF_FUNDED",
+      fundingStatus: "NOT_REQUIRED",
+    },
+  });
+
+  await prisma.payrollPeriod.update({
+    where: { id: junId },
+    data: {
+      status: "WAITING_CLIENT_TRANSFER",
+      paymentInstructionStatus: "READY",
+      fundingModel: "WORKING_CAPITAL",
+      fundingStatus: "FUNDED",
+    },
+  });
+
+  await prisma.paymentInstruction.update({
+    where: { id: piId },
+    data: {
+      executionModel: "WORKING_CAPITAL",
+      executionStatus: "READY",
     },
   });
 

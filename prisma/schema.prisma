@@ -35,6 +35,33 @@ enum PayrollStatus {
   REJECTED
   LOCKED
   DISBURSED
+  /// Confirmation-engine lifecycle (additive)
+  PAYMENT_INSTRUCTION_GENERATED
+  WAITING_CLIENT_TRANSFER
+  TRANSFER_PROOF_UPLOADED
+  UNDER_VERIFICATION
+  VERIFIED
+  CLOSED
+
+  @@schema("proqpay")
+}
+
+enum PaymentConfirmationStatus {
+  UPLOADED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  NEED_REVISION
+
+  @@schema("proqpay")
+}
+
+/// How the client executes salary transfers after the instruction is issued.
+enum PaymentExecutionModel {
+  CLIENT_SELF_TRANSFER
+  WORKING_CAPITAL
+  BANK_API
+  MANUAL
 
   @@schema("proqpay")
 }
@@ -347,9 +374,11 @@ model Company {
   bankAccounts            BankAccount[]
   users                   User[]                       @relation("UserCompany")
   paymentInstructions     PaymentInstruction[]
+  paymentConfirmations    PaymentConfirmation[]
   workingCapitalRequests  WorkingCapitalRequest[]
   salesOpportunities      SalesOpportunity[]
   pricingRules            PricingRule[]
+  notifications           AppNotification[]
   auditLogs               AuditLog[]
 
   @@index([organizationId])
@@ -379,6 +408,9 @@ model User {
   pricingCreated        PricingRule[]       @relation("PricingCreatedBy")
   pricingApproved       PricingRule[]       @relation("PricingApprovedBy")
   paymentInstructionsGen PaymentInstruction[] @relation("PaymentInstructionGeneratedBy")
+  confirmationsUploaded PaymentConfirmation[] @relation("ConfirmationUploadedBy")
+  confirmationsVerified PaymentConfirmation[] @relation("ConfirmationVerifiedBy")
+  notifications         AppNotification[]
   wcCreated             WorkingCapitalRequest[] @relation("WcCreatedBy")
   wcReviewed            WorkingCapitalRequest[] @relation("WcReviewedBy")
   wcApproved            WorkingCapitalRequest[] @relation("WcApprovedBy")
@@ -435,6 +467,7 @@ model PayrollPeriod {
   fundingStatus            PeriodFundingStatus      @default(NOT_REQUIRED) @map("funding_status")
   paymentInstructionStatus PaymentInstructionStatus @default(NOT_STARTED) @map("payment_instruction_status")
   reconciliationStatus     ReconciliationStatus     @default(NOT_STARTED) @map("reconciliation_status")
+  confirmationStatus       PaymentConfirmationStatus? @map("confirmation_status")
   employeeCount            Int                      @default(0) @map("employee_count")
   totalGross               Decimal                  @default(0) @map("total_gross") @db.Decimal(18, 2)
   totalDeductions          Decimal                  @default(0) @map("total_deductions") @db.Decimal(18, 2)
@@ -448,6 +481,7 @@ model PayrollPeriod {
   disbursements            DisbursementBatch[]
   workingCapital           WorkingCapitalRequest[]
   paymentInstructions      PaymentInstruction[]
+  paymentConfirmations     PaymentConfirmation[]
 
   @@index([companyId])
   @@index([status])
@@ -562,6 +596,8 @@ model PaymentInstruction {
   payrollPeriodId     String                    @map("payroll_period_id") @db.Uuid
   instructionNumber   String                    @map("instruction_number")
   fundingModel        PayrollFundingModel       @map("funding_model")
+  /// Canonical client-transfer model (self-transfer vs WC path)
+  executionModel      PaymentExecutionModel     @default(CLIENT_SELF_TRANSFER) @map("execution_model")
   executionType       PaymentExecutionType      @map("execution_type")
   integrationStatus   BankingIntegrationStatus  @default(SIMULATED) @map("integration_status")
   sourceBankAccountId String?                   @map("source_bank_account_id") @db.Uuid
@@ -583,6 +619,7 @@ model PaymentInstruction {
   sourceBankAccount   BankAccount?              @relation("InstructionSourceAccount", fields: [sourceBankAccountId], references: [id], onDelete: SetNull)
   generatedBy         User?                     @relation("PaymentInstructionGeneratedBy", fields: [generatedById], references: [id], onDelete: SetNull)
   items               PaymentInstructionItem[]
+  paymentConfirmations PaymentConfirmation[]
 
   @@unique([companyId, instructionNumber])
   @@index([companyId])
@@ -768,6 +805,81 @@ model CapitalAllocation {
   @@index([workingCapitalRequestId])
   @@index([capitalPartnerId])
   @@map("capital_allocations")
+  @@schema("proqpay")
+}
+
+// ─── Payroll Confirmation Engine ─────────────────────────
+
+model PaymentConfirmation {
+  id                    String                    @id @default(uuid()) @db.Uuid
+  companyId             String                    @map("company_id") @db.Uuid
+  payrollPeriodId       String                    @map("payroll_period_id") @db.Uuid
+  paymentInstructionId  String                    @map("payment_instruction_id") @db.Uuid
+  confirmationNumber    String                    @map("confirmation_number")
+  paymentDate           DateTime                  @map("payment_date") @db.Date
+  paymentAmount         Decimal                   @map("payment_amount") @db.Decimal(18, 2)
+  payerBank             String                    @map("payer_bank")
+  payerAccountName      String                    @map("payer_account_name")
+  payerAccountMasked    String                    @map("payer_account_masked")
+  referenceNumber       String                    @map("reference_number")
+  status                PaymentConfirmationStatus @default(UPLOADED)
+  notes                 String?
+  rejectionReason       String?                   @map("rejection_reason")
+  uploadedById          String?                   @map("uploaded_by") @db.Uuid
+  verifiedById          String?                   @map("verified_by") @db.Uuid
+  verifiedAt            DateTime?                 @map("verified_at")
+  createdAt             DateTime                  @default(now()) @map("created_at")
+  updatedAt             DateTime                  @updatedAt @map("updated_at")
+  company               Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollPeriod         PayrollPeriod             @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  paymentInstruction    PaymentInstruction        @relation(fields: [paymentInstructionId], references: [id], onDelete: Cascade)
+  uploadedBy            User?                     @relation("ConfirmationUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  verifiedBy            User?                     @relation("ConfirmationVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  files                 PaymentConfirmationFile[]
+
+  @@unique([companyId, confirmationNumber])
+  @@index([companyId])
+  @@index([payrollPeriodId])
+  @@index([paymentInstructionId])
+  @@index([status])
+  @@map("payment_confirmations")
+  @@schema("proqpay")
+}
+
+model PaymentConfirmationFile {
+  id                    String              @id @default(uuid()) @db.Uuid
+  paymentConfirmationId String              @map("payment_confirmation_id") @db.Uuid
+  storagePath           String              @map("storage_path")
+  fileName              String              @map("file_name")
+  mimeType              String              @map("mime_type")
+  fileSize              Int                 @map("file_size")
+  uploadedAt            DateTime            @default(now()) @map("uploaded_at")
+  paymentConfirmation   PaymentConfirmation @relation(fields: [paymentConfirmationId], references: [id], onDelete: Cascade)
+
+  @@index([paymentConfirmationId])
+  @@map("payment_confirmation_files")
+  @@schema("proqpay")
+}
+
+model AppNotification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  companyId String?   @map("company_id") @db.Uuid
+  type      String
+  title     String
+  body      String
+  entity    String?
+  entityId  String?   @map("entity_id")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@map("app_notifications")
   @@schema("proqpay")
 }
 
