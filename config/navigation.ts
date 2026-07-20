@@ -98,6 +98,14 @@ const allNav: NavItem[] = [
     keywords: ["period", "salary", "run"],
   },
   {
+    title: "Payroll Engine",
+    href: "/payroll-engine",
+    icon: Wallet,
+    module: "payroll",
+    group: "payroll_operations",
+    keywords: ["formula", "component", "simulation", "engine"],
+  },
+  {
     title: "Approvals",
     href: "/approval",
     icon: GitBranch,

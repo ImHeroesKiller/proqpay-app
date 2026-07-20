@@ -464,6 +464,14 @@ model Company {
   financialAudits         FinancialAudit[]
   cashMovements           CashMovement[]
   treasuryAccounts        TreasuryAccount[]
+  billingProfile          ClientBillingProfile?
+  payrollFormulas         PayrollFormula[]
+  payrollCalculations     PayrollCalculation[]
+  payrollSimulations      PayrollSimulation[]
+  payrollApprovals        PayrollApproval[]
+  payrollJournals         PayrollJournal[]
+  payrollBudgets          PayrollBudget[]
+  payrollComponentCategories PayrollComponentCategory[]
 
   @@index([organizationId])
   @@index([lifecycleStatus])
@@ -1198,6 +1206,14 @@ model PayrollComponent {
   isTaxable   Boolean              @default(true) @map("is_taxable")
   isActive    Boolean              @default(true) @map("is_active")
   sortOrder   Int                  @default(0) @map("sort_order")
+  /// Phase 1B engine extensions (optional / additive)
+  categoryCode    String?          @map("category_code")
+  calculationType String?          @map("calculation_type") // FIXED | PERCENTAGE | FORMULA | MANUAL | TABLE | RUNTIME
+  bpjsApplicable  Boolean          @default(false) @map("bpjs_applicable")
+  currency        String           @default("IDR")
+  isSystem        Boolean          @default(false) @map("is_system")
+  isEditable      Boolean          @default(true) @map("is_editable")
+  formulaExpression String?        @map("formula_expression")
   createdAt   DateTime             @default(now()) @map("created_at")
   updatedAt   DateTime             @updatedAt @map("updated_at")
   company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1733,3 +1749,372 @@ model FinancialAudit {
   @@schema("proqpay")
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// Phase 1B — Enterprise Payroll Engine (additive)
+// Coexists with legacy PayrollPeriod / PayrollLine / engine.ts
+// ═══════════════════════════════════════════════════════════
+
+enum EngineRunStatus {
+  DRAFT
+  CALCULATING
+  VALIDATING
+  READY_FOR_APPROVAL
+  PARTIALLY_APPROVED
+  APPROVED
+  LOCKED
+  CLOSED
+  REVISED
+  CANCELLED
+  FAILED
+
+  @@schema("proqpay")
+}
+
+enum FormulaStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+
+  @@schema("proqpay")
+}
+
+enum ValidationSeverity {
+  INFO
+  WARNING
+  ERROR
+  BLOCKER
+
+  @@schema("proqpay")
+}
+
+enum EngineApprovalAction {
+  APPROVE
+  REJECT
+  REQUEST_REVISION
+  COMMENT
+
+  @@schema("proqpay")
+}
+
+enum BudgetScopeType {
+  COMPANY
+  CLIENT
+  PROJECT
+  SITE
+
+  @@schema("proqpay")
+}
+
+enum BillingMethod {
+  PAYROLL_SERVICE
+  FIXED_FEE
+  HYBRID
+  OTHER
+
+  @@schema("proqpay")
+}
+
+enum InvoiceGrouping {
+  PER_PAYROLL
+  PER_PROJECT
+  PER_SITE
+  CONSOLIDATED
+
+  @@schema("proqpay")
+}
+
+model ClientBillingProfile {
+  id              String          @id @default(uuid()) @db.Uuid
+  companyId       String          @unique @map("company_id") @db.Uuid
+  billingMethod   BillingMethod   @default(PAYROLL_SERVICE) @map("billing_method")
+  topDays         Int             @default(30) @map("top_days")
+  invoiceGrouping InvoiceGrouping @default(PER_PAYROLL) @map("invoice_grouping")
+  invoicePrefix   String          @default("INV") @map("invoice_prefix")
+  currency        String          @default("IDR")
+  taxConfiguration String?        @map("tax_configuration")
+  notes           String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("client_billing_profiles")
+  @@schema("proqpay")
+}
+
+model PayrollComponentCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String?  @map("company_id") @db.Uuid
+  code        String
+  name        String
+  displayOrder Int     @default(0) @map("display_order")
+  isSystem    Boolean  @default(true) @map("is_system")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
+  @@map("payroll_component_categories")
+  @@schema("proqpay")
+}
+
+model PayrollFormula {
+  id          String        @id @default(uuid()) @db.Uuid
+  companyId   String        @map("company_id") @db.Uuid
+  code        String
+  name        String
+  description String?
+  status      FormulaStatus @default(DRAFT)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  versions    PayrollFormulaVersion[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("payroll_formulas")
+  @@schema("proqpay")
+}
+
+model PayrollFormulaVersion {
+  id              String   @id @default(uuid()) @db.Uuid
+  formulaId       String   @map("formula_id") @db.Uuid
+  version         Int
+  expression      String
+  /// JSON array of component codes this formula depends on
+  dependsOnJson   String   @default("[]") @map("depends_on_json")
+  isActive        Boolean  @default(false) @map("is_active")
+  changeNote      String?  @map("change_note")
+  createdById     String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  formula         PayrollFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+
+  @@unique([formulaId, version])
+  @@index([formulaId])
+  @@map("payroll_formula_versions")
+  @@schema("proqpay")
+}
+
+model PayrollCalculation {
+  id              String         @id @default(uuid()) @db.Uuid
+  companyId       String         @map("company_id") @db.Uuid
+  payrollPeriodId String?        @map("payroll_period_id") @db.Uuid
+  revision        Int            @default(1)
+  status          EngineRunStatus @default(DRAFT)
+  employeeCount   Int            @default(0) @map("employee_count")
+  grossTotal      Decimal        @default(0) @map("gross_total") @db.Decimal(18, 2)
+  netTotal        Decimal        @default(0) @map("net_total") @db.Decimal(18, 2)
+  employerCost    Decimal        @default(0) @map("employer_cost") @db.Decimal(18, 2)
+  fundingRequirement Decimal     @default(0) @map("funding_requirement") @db.Decimal(18, 2)
+  workingCapitalRequirement Decimal @default(0) @map("working_capital_requirement") @db.Decimal(18, 2)
+  expectedClientFunding Decimal  @default(0) @map("expected_client_funding") @db.Decimal(18, 2)
+  formulaVersionIds String?      @map("formula_version_ids")
+  errorMessage    String?        @map("error_message")
+  calculatedAt    DateTime?      @map("calculated_at")
+  createdById     String?        @map("created_by") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items           PayrollCalculationItem[]
+  snapshot        PayrollSnapshot?
+  validations     PayrollValidation[]
+  approvals       PayrollApproval[]
+  revisions       PayrollRevision[]
+  journal         PayrollJournal?
+
+  @@index([companyId])
+  @@index([payrollPeriodId])
+  @@index([status])
+  @@map("payroll_calculations")
+  @@schema("proqpay")
+}
+
+model PayrollCalculationItem {
+  id               String   @id @default(uuid()) @db.Uuid
+  calculationId    String   @map("calculation_id") @db.Uuid
+  employeeId       String?  @map("employee_id") @db.Uuid
+  employeeCode     String?  @map("employee_code")
+  employeeName     String   @map("employee_name")
+  componentCode    String   @map("component_code")
+  componentName    String   @map("component_name")
+  formulaSource    String?  @map("formula_source")
+  calculatedValue  Decimal  @default(0) @map("calculated_value") @db.Decimal(18, 2)
+  manualOverride   Decimal? @map("manual_override") @db.Decimal(18, 2)
+  finalValue       Decimal  @default(0) @map("final_value") @db.Decimal(18, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  calculation      PayrollCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  @@index([calculationId])
+  @@index([employeeId])
+  @@map("payroll_calculation_items")
+  @@schema("proqpay")
+}
+
+/// Immutable snapshot of a finished calculation (JSON payload).
+model PayrollSnapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  calculationId String   @unique @map("calculation_id") @db.Uuid
+  revision      Int      @default(1)
+  payloadJson   String   @map("payload_json")
+  checksum      String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  calculation   PayrollCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  @@map("payroll_snapshots")
+  @@schema("proqpay")
+}
+
+model PayrollSimulation {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  name          String
+  scenarioJson  String   @map("scenario_json")
+  resultJson    String?  @map("result_json")
+  grossTotal    Decimal  @default(0) @map("gross_total") @db.Decimal(18, 2)
+  netTotal      Decimal  @default(0) @map("net_total") @db.Decimal(18, 2)
+  employerCost  Decimal  @default(0) @map("employer_cost") @db.Decimal(18, 2)
+  workingCapitalRequirement Decimal @default(0) @map("working_capital_requirement") @db.Decimal(18, 2)
+  marginImpact  Decimal  @default(0) @map("margin_impact") @db.Decimal(18, 2)
+  createdById   String?  @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("payroll_simulations")
+  @@schema("proqpay")
+}
+
+model PayrollValidation {
+  id            String              @id @default(uuid()) @db.Uuid
+  calculationId String              @map("calculation_id") @db.Uuid
+  code          String
+  severity      ValidationSeverity  @default(WARNING)
+  message       String
+  employeeId    String?             @map("employee_id") @db.Uuid
+  employeeName  String?             @map("employee_name")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  calculation   PayrollCalculation  @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  @@index([calculationId])
+  @@index([severity])
+  @@map("payroll_validations")
+  @@schema("proqpay")
+}
+
+model PayrollApproval {
+  id            String   @id @default(uuid()) @db.Uuid
+  calculationId String   @map("calculation_id") @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  name          String   @default("Default payroll approval")
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  calculation   PayrollCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  steps         PayrollApprovalStep[]
+
+  @@index([calculationId])
+  @@index([companyId])
+  @@map("payroll_approvals")
+  @@schema("proqpay")
+}
+
+model PayrollApprovalStep {
+  id          String               @id @default(uuid()) @db.Uuid
+  approvalId  String               @map("approval_id") @db.Uuid
+  level       Int
+  roleLabel   String               @map("role_label")
+  assigneeName String?             @map("assignee_name")
+  status      String               @default("PENDING")
+  action      EngineApprovalAction?
+  comment     String?
+  actedAt     DateTime?            @map("acted_at")
+  actedById   String?              @map("acted_by") @db.Uuid
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  approval    PayrollApproval      @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@index([approvalId])
+  @@map("payroll_approval_steps")
+  @@schema("proqpay")
+}
+
+model PayrollRevision {
+  id              String   @id @default(uuid()) @db.Uuid
+  calculationId   String   @map("calculation_id") @db.Uuid
+  revisionNumber  Int      @map("revision_number")
+  reason          String
+  baseRevision    Int?     @map("base_revision")
+  snapshotJson    String?  @map("snapshot_json")
+  createdById     String?  @map("created_by") @db.Uuid
+  createdByName   String?  @map("created_by_name")
+  createdAt       DateTime @default(now()) @map("created_at")
+  calculation     PayrollCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  @@unique([calculationId, revisionNumber])
+  @@index([calculationId])
+  @@map("payroll_revisions")
+  @@schema("proqpay")
+}
+
+model PayrollJournal {
+  id                String   @id @default(uuid()) @db.Uuid
+  calculationId     String   @unique @map("calculation_id") @db.Uuid
+  companyId         String   @map("company_id") @db.Uuid
+  grossPayroll      Decimal  @default(0) @map("gross_payroll") @db.Decimal(18, 2)
+  netPayroll        Decimal  @default(0) @map("net_payroll") @db.Decimal(18, 2)
+  allowanceTotal    Decimal  @default(0) @map("allowance_total") @db.Decimal(18, 2)
+  deductionTotal    Decimal  @default(0) @map("deduction_total") @db.Decimal(18, 2)
+  employerCost      Decimal  @default(0) @map("employer_cost") @db.Decimal(18, 2)
+  employeeCost      Decimal  @default(0) @map("employee_cost") @db.Decimal(18, 2)
+  bpjsEmployer      Decimal  @default(0) @map("bpjs_employer") @db.Decimal(18, 2)
+  bpjsEmployee      Decimal  @default(0) @map("bpjs_employee") @db.Decimal(18, 2)
+  taxTotal          Decimal  @default(0) @map("tax_total") @db.Decimal(18, 2)
+  workingCapitalRequirement Decimal @default(0) @map("working_capital_requirement") @db.Decimal(18, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  calculation       PayrollCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("payroll_journals")
+  @@schema("proqpay")
+}
+
+model PayrollBudget {
+  id          String          @id @default(uuid()) @db.Uuid
+  companyId   String          @map("company_id") @db.Uuid
+  name        String
+  scopeType   BudgetScopeType @default(COMPANY) @map("scope_type")
+  scopeId     String?         @map("scope_id")
+  periodLabel String?         @map("period_label")
+  amount      Decimal         @db.Decimal(18, 2)
+  currency    String          @default("IDR")
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  allocations PayrollBudgetAllocation[]
+
+  @@index([companyId])
+  @@map("payroll_budgets")
+  @@schema("proqpay")
+}
+
+model PayrollBudgetAllocation {
+  id        String   @id @default(uuid()) @db.Uuid
+  budgetId  String   @map("budget_id") @db.Uuid
+  label     String
+  amount    Decimal  @db.Decimal(18, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  budget    PayrollBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+  @@map("payroll_budget_allocations")
+  @@schema("proqpay")
+}
