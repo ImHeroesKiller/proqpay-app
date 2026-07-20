@@ -32,6 +32,18 @@ const map: Record<string, { label: string; variant: "success" | "warning" | "dan
   PROBATION: { label: "Probation", variant: "warning" },
   RESIGNED: { label: "Resigned", variant: "secondary" },
   TERMINATED: { label: "Terminated", variant: "danger" },
+  READY: { label: "Ready", variant: "info" },
+  SUBMITTED: { label: "Submitted", variant: "warning" },
+  PROCESSING: { label: "Processing", variant: "warning" },
+  EXECUTED: { label: "Executed", variant: "success" },
+  FUNDED: { label: "Funded", variant: "success" },
+  NOT_STARTED: { label: "Not started", variant: "secondary" },
+  NOT_REQUIRED: { label: "Not required", variant: "secondary" },
+  UNDER_REVIEW: { label: "Under review", variant: "warning" },
+  SETTLEMENT_DUE: { label: "Settlement due", variant: "accent" },
+  PARTIALLY_FAILED: { label: "Partial fail", variant: "danger" },
+  SELF_FUNDED: { label: "Client-funded", variant: "info" },
+  WORKING_CAPITAL: { label: "Working capital", variant: "accent" },
 };
 
 export function StatusBadge({ status }: { status: AnyStatus }) {

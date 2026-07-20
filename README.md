@@ -19,20 +19,31 @@ This is **not** an HRIS, ERP, or accounting suite. It is an **Enterprise Payroll
 - Auth.js (next-auth v5) · Prisma · PostgreSQL
 - pnpm · Docker
 
+## Payroll models
+
+1. **Client-funded (default)** — funds remain in the client bank; ProQPay orchestrates validation → approval → payment instruction → execution → reconciliation → audit.  
+2. **Working capital (optional)** — separately approved funding request → capital allocation → funded execution → settlement. Never required for every period.
+
 ## Modules
 
-| Module | Path |
-|--------|------|
-| Dashboard | `/dashboard` |
-| Employees | `/employees` |
-| Payroll | `/payroll` |
-| Approval | `/approval` |
-| Disbursement | `/disbursement` |
-| Working Capital | `/working-capital` |
-| Reports | `/reports` |
-| Audit | `/audit` |
-| Settings | `/settings` |
-| Roadmap | `/roadmap` |
+| Module | Path | Audience |
+|--------|------|----------|
+| Dashboard | `/dashboard` | Operations (+ executive KPIs by role) |
+| Employees | `/employees` | Ops |
+| Payroll | `/payroll` | Ops |
+| Approval | `/approval` | Ops |
+| Payment instructions | `/payment-instructions` | Ops |
+| Disbursement (legacy) | `/disbursement` | Ops |
+| Working Capital | `/working-capital` | Ops / Finance |
+| Reports | `/reports` | Ops |
+| Audit | `/audit` | Ops |
+| Settings | `/settings` | Ops |
+| Clients | `/clients` | Internal commercial |
+| Sales pipeline | `/sales` | Internal commercial |
+| Pricing | `/pricing` | Internal commercial |
+| Capital partners | `/capital-partners` | Internal commercial |
+| Capital allocations | `/capital-allocations` | Internal commercial |
+| Roadmap | `/roadmap` | All |
 
 ## Demo login
 

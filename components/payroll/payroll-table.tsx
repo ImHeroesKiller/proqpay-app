@@ -41,6 +41,14 @@ const columns: ColumnDef<PayrollPeriod>[] = [
     cell: ({ row }) => formatRupiah(row.original.totalNet),
   },
   {
+    accessorKey: "fundingModel",
+    header: "Funding model",
+    cell: ({ row }) =>
+      row.original.fundingModel === "SELF_FUNDED"
+        ? "Client-funded"
+        : "Working capital",
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => <StatusBadge status={row.original.status} />,

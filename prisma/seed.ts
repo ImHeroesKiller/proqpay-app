@@ -303,12 +303,24 @@ async function main() {
       legalName: "PT Contoh Mitra Usaha",
       npwp: "01.234.567.8-901.000",
       address: "SCBD Lot 9, Jakarta Selatan",
+      lifecycleStatus: "ACTIVE",
+      defaultFundingModel: "SELF_FUNDED",
+      fundingEnabled: true,
+      workingCapitalStatus: "ENABLED",
+      workingCapitalLimit: 100000000,
+      industry: "Workforce solutions",
     },
     update: {
       name: "PT Mandiri Semesta Gemilang — Client Demo Co.",
       legalName: "PT Contoh Mitra Usaha",
       npwp: "01.234.567.8-901.000",
       address: "SCBD Lot 9, Jakarta Selatan",
+      lifecycleStatus: "ACTIVE",
+      defaultFundingModel: "SELF_FUNDED",
+      fundingEnabled: true,
+      workingCapitalStatus: "ENABLED",
+      workingCapitalLimit: 100000000,
+      industry: "Workforce solutions",
     },
   });
 
@@ -357,11 +369,21 @@ async function main() {
   for (const b of banks) {
     await prisma.bankAccount.upsert({
       where: { id: b.id },
-      create: { ...b, companyId: COMPANY_ID },
+      create: {
+        ...b,
+        companyId: COMPANY_ID,
+        purpose: "CLIENT_PAYROLL_SOURCE",
+        maskedAccountNumber: "••••" + b.account.slice(-4),
+        currency: "IDR",
+        status: "ACTIVE",
+        isPrimary: b.label.includes("Payroll"),
+      },
       update: {
         bank: b.bank,
         account: b.account,
         label: b.label,
+        purpose: "CLIENT_PAYROLL_SOURCE",
+        maskedAccountNumber: "••••" + b.account.slice(-4),
       },
     });
   }
@@ -500,6 +522,43 @@ async function main() {
   const mayId = stableId("period:2026-05");
   const aprId = stableId("period:2026-04");
   const julId = stableId("period:2026-07");
+
+
+  // Funding models: Juni WC optional path, others client-funded
+  await prisma.payrollPeriod.update({
+    where: { id: junId },
+    data: {
+      fundingModel: "WORKING_CAPITAL",
+      fundingStatus: "APPROVED",
+      paymentInstructionStatus: "READY",
+      reconciliationStatus: "NOT_STARTED",
+      executionType: "PROQPAY_MANAGED_TRANSFER",
+      sourceBankAccountId: stableId("bank:mandiri"),
+    },
+  });
+  for (const pid of [mayId, aprId]) {
+    await prisma.payrollPeriod.update({
+      where: { id: pid },
+      data: {
+        fundingModel: "SELF_FUNDED",
+        fundingStatus: "NOT_REQUIRED",
+        paymentInstructionStatus: "EXECUTED",
+        reconciliationStatus: "RECONCILED",
+        executionType: "CLIENT_BANK_TRANSFER",
+        sourceBankAccountId: stableId("bank:mandiri"),
+      },
+    });
+  }
+  await prisma.payrollPeriod.update({
+    where: { id: julId },
+    data: {
+      fundingModel: "SELF_FUNDED",
+      fundingStatus: "NOT_REQUIRED",
+      paymentInstructionStatus: "NOT_STARTED",
+      reconciliationStatus: "NOT_STARTED",
+      executionType: "CLIENT_BANK_TRANSFER",
+    },
+  });
 
   // Payroll lines for Juni 2026
   for (let index = 0; index < employeesSeed.length; index++) {
@@ -825,6 +884,172 @@ async function main() {
       },
     });
   }
+
+
+  // Payment instruction (simulated banking) for Juni WC path
+  const piId = stableId("pi:jun");
+  await prisma.paymentInstruction.upsert({
+    where: { id: piId },
+    create: {
+      id: piId,
+      companyId: COMPANY_ID,
+      payrollPeriodId: junId,
+      instructionNumber: "PI-2026-06-001",
+      fundingModel: "WORKING_CAPITAL",
+      executionType: "PROQPAY_MANAGED_TRANSFER",
+      integrationStatus: "SIMULATED",
+      sourceBankAccountId: stableId("bank:mandiri"),
+      totalRecords: 12,
+      totalAmount: 123750000,
+      currency: "IDR",
+      approvalStatus: "APPROVED",
+      executionStatus: "READY",
+      generatedById: userIds.siti,
+      generatedAt: new Date("2026-06-30T04:00:00.000Z"),
+      version: 1,
+    },
+    update: {
+      totalAmount: 123750000,
+      executionStatus: "READY",
+      integrationStatus: "SIMULATED",
+    },
+  });
+
+  // Working capital company link
+  await prisma.workingCapitalRequest.updateMany({
+    where: { payrollPeriodId: junId },
+    data: {
+      companyId: COMPANY_ID,
+      requestNumber: "WC-2026-06-001",
+      status: "APPROVED",
+      tenorDays: 30,
+      settlementStatus: "PENDING",
+      createdById: userIds.budi,
+      approvedById: userIds.andi,
+    },
+  });
+
+  // Anonymized internal commercial seed (no real prospect names in tracked code)
+  const allowConfidential = process.env.ALLOW_CONFIDENTIAL_SEED_DATA === "true";
+  const prospects = allowConfidential
+    ? [
+        { name: "Prospect Confidential A", value: 2000000000, p: 40 },
+        { name: "Prospect Confidential B", value: 2000000000, p: 35 },
+        { name: "Prospect Confidential C", value: 200000000, p: 25 },
+      ]
+    : [
+        { name: "Prospect A", value: 2000000000, p: 40 },
+        { name: "Prospect B", value: 2000000000, p: 35 },
+        { name: "Prospect C", value: 200000000, p: 25 },
+      ];
+
+  for (const [i, pr] of prospects.entries()) {
+    const id = stableId(`sales:prospect:${i}`);
+    const weighted = Math.round((pr.value * pr.p) / 100);
+    await prisma.salesOpportunity.upsert({
+      where: { id },
+      create: {
+        id,
+        organizationId: ORG_ID,
+        prospectName: pr.name,
+        stage: i === 0 ? "PROPOSAL" : "DISCOVERY",
+        estimatedPayrollValue: pr.value,
+        probabilityPercentage: pr.p,
+        weightedPipelineValue: weighted,
+        fundingInterest: i !== 2,
+        proposedFundingModel: i === 0 ? "WORKING_CAPITAL" : "SELF_FUNDED",
+        salesOwnerUserId: userIds.admin,
+        source: "internal-pipeline",
+        notes: "Internal only — not for public display",
+        status: "OPEN",
+      },
+      update: {
+        estimatedPayrollValue: pr.value,
+        probabilityPercentage: pr.p,
+        weightedPipelineValue: weighted,
+      },
+    });
+  }
+
+  await prisma.pricingRule.upsert({
+    where: { id: stableId("pricing:demo") },
+    create: {
+      id: stableId("pricing:demo"),
+      companyId: COMPANY_ID,
+      pricingType: "PERCENTAGE_OF_PAYROLL",
+      percentageRate: 0.75,
+      calculationBase: "NET_PAYROLL",
+      effectiveFrom: new Date("2026-01-01"),
+      status: "ACTIVE",
+      notes: "Demo rate — internal",
+      createdById: userIds.admin,
+      approvedById: userIds.andi,
+    },
+    update: { status: "ACTIVE" },
+  });
+
+  const partnerId = stableId("partner:demo");
+  await prisma.capitalPartner.upsert({
+    where: { id: partnerId },
+    create: {
+      id: partnerId,
+      organizationId: ORG_ID,
+      legalName: "Demo Capital Partner Ltd",
+      displayName: "Demo Funding Partner",
+      status: "ACTIVE",
+      agreementStatus: "SIGNED",
+      committedCapital: 500000000,
+      availableCapital: 350000000,
+      maximumSingleExposure: 150000000,
+      contactName: "Partner Desk",
+      contactEmail: "partner@example.invalid",
+      internalNotes: "Internal partner record",
+    },
+    update: {
+      availableCapital: 350000000,
+      status: "ACTIVE",
+    },
+  });
+
+  const wcJun = await prisma.workingCapitalRequest.findFirst({
+    where: { payrollPeriodId: junId },
+  });
+  if (wcJun) {
+    await prisma.capitalAllocation.upsert({
+      where: { id: stableId("alloc:jun") },
+      create: {
+        id: stableId("alloc:jun"),
+        workingCapitalRequestId: wcJun.id,
+        capitalPartnerId: partnerId,
+        allocatedAmount: 75000000,
+        allocationStatus: "APPROVED",
+        platformFeeAmount: 1500000,
+        revenueShareRate: 0.02,
+        settlementStatus: "PENDING",
+        repaymentDueDate: new Date("2026-07-20"),
+      },
+      update: {
+        allocatedAmount: 75000000,
+        allocationStatus: "APPROVED",
+      },
+    });
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      id: stableId("audit:funding-model"),
+      companyId: COMPANY_ID,
+      userId: userIds.admin,
+      userName: "MSG Super Admin",
+      userRole: "SUPER_ADMIN",
+      action: "CONFIGURE_FUNDING_MODEL",
+      entity: "PayrollPeriod",
+      entityId: junId,
+      detail: "Set WORKING_CAPITAL path for Juni 2026 (optional funding branch)",
+      timestamp: new Date(),
+      ip: "10.0.0.12",
+    },
+  }).catch(() => undefined);
 
   console.log("Seed complete:", {
     organization: 1,

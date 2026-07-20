@@ -18,13 +18,20 @@ export default async function SettingsPage() {
     address: "—",
     payDay: 5,
     currency: "IDR",
+    defaultFundingModel: "SELF_FUNDED",
+    fundingEnabled: true,
     approvalLevels: [
       "Payroll Admin",
       "Finance Manager",
       "Finance Control",
       "Director",
     ],
-    bankAccounts: [] as { bank: string; account: string; label: string }[],
+    bankAccounts: [] as {
+      bank: string;
+      account: string;
+      label: string;
+      purpose: string;
+    }[],
   };
 
   return (
@@ -54,9 +61,21 @@ export default async function SettingsPage() {
           <CardContent className="space-y-2 text-sm">
             <Row label="Default pay day" value={`Day ${settings.payDay}`} />
             <Row label="Currency" value={settings.currency} />
+            <Row
+              label="Default funding model"
+              value={
+                settings.defaultFundingModel === "SELF_FUNDED"
+                  ? "Client-funded"
+                  : "Working capital"
+              }
+            />
+            <Row
+              label="Funding facility enabled"
+              value={settings.fundingEnabled ? "Yes" : "No"}
+            />
             <p className="text-xs text-muted-foreground">
-              Allowances, deductions, and overtime formulas are configurable in
-              future releases.
+              Client-funded is the default payroll path. Working capital is
+              optional per period and never forced.
             </p>
           </CardContent>
         </Card>

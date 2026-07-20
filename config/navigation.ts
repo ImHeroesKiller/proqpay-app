@@ -4,32 +4,58 @@ import {
   Users,
   Wallet,
   GitBranch,
-  Banknote,
+  FileText,
   Landmark,
   BarChart3,
   ShieldCheck,
   Settings,
   Sparkles,
+  Building2,
+  LineChart,
+  BadgePercent,
+  Handshake,
+  Coins,
 } from "lucide-react";
+import type { Role } from "@/types";
+import {
+  canAccessModule,
+  type AppModule,
+} from "@/lib/auth/permissions";
 
 export type NavItem = {
   title: string;
   href: string;
   icon: LucideIcon;
+  module: AppModule;
+  section?: "operations" | "internal";
 };
 
-export const appNavigation: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Employees", href: "/employees", icon: Users },
-  { title: "Payroll", href: "/payroll", icon: Wallet },
-  { title: "Approval", href: "/approval", icon: GitBranch },
-  { title: "Disbursement", href: "/disbursement", icon: Banknote },
-  { title: "Working Capital", href: "/working-capital", icon: Landmark },
-  { title: "Reports", href: "/reports", icon: BarChart3 },
-  { title: "Audit", href: "/audit", icon: ShieldCheck },
-  { title: "Settings", href: "/settings", icon: Settings },
+const allNav: NavItem[] = [
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "dashboard", section: "operations" },
+  { title: "Employees", href: "/employees", icon: Users, module: "employees", section: "operations" },
+  { title: "Payroll", href: "/payroll", icon: Wallet, module: "payroll", section: "operations" },
+  { title: "Approval", href: "/approval", icon: GitBranch, module: "approval", section: "operations" },
+  { title: "Payment instructions", href: "/payment-instructions", icon: FileText, module: "payment_instructions", section: "operations" },
+  { title: "Working capital", href: "/working-capital", icon: Landmark, module: "working_capital", section: "operations" },
+  { title: "Reports", href: "/reports", icon: BarChart3, module: "reports", section: "operations" },
+  { title: "Audit", href: "/audit", icon: ShieldCheck, module: "audit", section: "operations" },
+  { title: "Settings", href: "/settings", icon: Settings, module: "settings", section: "operations" },
+  { title: "Clients", href: "/clients", icon: Building2, module: "clients", section: "internal" },
+  { title: "Sales pipeline", href: "/sales", icon: LineChart, module: "sales_pipeline", section: "internal" },
+  { title: "Pricing", href: "/pricing", icon: BadgePercent, module: "pricing", section: "internal" },
+  { title: "Capital partners", href: "/capital-partners", icon: Handshake, module: "capital_partners", section: "internal" },
+  { title: "Capital allocations", href: "/capital-allocations", icon: Coins, module: "capital_allocations", section: "internal" },
 ];
 
+export function navigationForRole(role: Role): NavItem[] {
+  return allNav.filter((item) => canAccessModule(role, item.module));
+}
+
+/** @deprecated Prefer navigationForRole */
+export const appNavigation: NavItem[] = allNav.filter(
+  (i) => i.section === "operations",
+);
+
 export const roadmapNav: NavItem[] = [
-  { title: "Roadmap", href: "/roadmap", icon: Sparkles },
+  { title: "Roadmap", href: "/roadmap", icon: Sparkles, module: "roadmap" },
 ];

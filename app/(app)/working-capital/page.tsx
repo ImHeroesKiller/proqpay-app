@@ -33,7 +33,7 @@ export default async function WorkingCapitalPage() {
     <div>
       <PageHeader
         title="Working capital"
-        description="Finance payroll before payday with controlled funding requests and repayment tracking."
+        description="Optional payroll working capital only. Self-funded periods do not require a funding request. Settlement and partner allocation are internal commercial processes."
         actions={
           <Button variant="accent" size="sm" disabled>
             New request

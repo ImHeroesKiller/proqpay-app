@@ -12,7 +12,7 @@ export default async function DisbursementPage() {
     <div>
       <PageHeader
         title="Disbursement"
-        description="Payroll batches, bank transfer status, and reconciliation placeholders."
+        description="Legacy execution batches for compatibility. Prefer Payment instructions for the canonical execution workflow (integration status may be SIMULATED)."
         actions={
           <Button variant="outline" size="sm" disabled>
             Reconcile (soon)
