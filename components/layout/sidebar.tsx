@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useCallback } from "react";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { navigationGroupsForRole } from "@/config/navigation";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,19 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Routes that may intent-prefetch on hover/focus.
+ * All sidebar Links use prefetch={false} to avoid mass RSC fan-out on first paint.
+ */
+const INTENT_PREFETCH_HREFS = new Set([
+  "/dashboard",
+  "/employees",
+  "/payroll",
+  "/approval",
+  "/payment-confirmation",
+  "/reports",
+]);
+
 export function Sidebar({
   onNavigate,
   collapsed = false,
@@ -28,10 +42,19 @@ export function Sidebar({
   mobile?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data } = useSession();
   const role = (data?.user?.role as Role) ?? "VIEWER";
   const groups = navigationGroupsForRole(role);
   const isCollapsed = collapsed && !mobile;
+
+  const intentPrefetch = useCallback(
+    (href: string) => {
+      if (!INTENT_PREFETCH_HREFS.has(href)) return;
+      router.prefetch(href);
+    },
+    [router],
+  );
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -51,7 +74,10 @@ export function Sidebar({
         >
           <Link
             href="/dashboard"
+            prefetch={false}
             onClick={onNavigate}
+            onMouseEnter={() => intentPrefetch("/dashboard")}
+            onFocus={() => intentPrefetch("/dashboard")}
             className={cn("block min-w-0", isCollapsed && "text-center")}
           >
             {isCollapsed ? (
@@ -94,7 +120,10 @@ export function Sidebar({
                     const link = (
                       <Link
                         href={item.href}
+                        prefetch={false}
                         onClick={onNavigate}
+                        onMouseEnter={() => intentPrefetch(item.href)}
+                        onFocus={() => intentPrefetch(item.href)}
                         data-tour={`nav-${item.module}`}
                         className={cn(
                           "flex items-center gap-2.5 rounded-md text-sm font-medium transition-colors",
