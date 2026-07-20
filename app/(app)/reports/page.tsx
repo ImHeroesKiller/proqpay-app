@@ -1,11 +1,12 @@
 export const dynamic = "force-dynamic";
 
+import dynamicImport from "next/dynamic";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ReportsCharts } from "@/components/reports/reports-charts";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  getEmployees,
+  getEmployeeDepartmentCosts,
   getPayrollChartData,
   getPayrollPeriods,
 } from "@/lib/data/queries";
@@ -13,10 +14,21 @@ import { requireModule } from "@/lib/auth/session";
 import { formatRupiah } from "@/lib/utils";
 import { Download } from "lucide-react";
 
+const ReportsCharts = dynamicImport(
+  () =>
+    import("@/components/reports/reports-charts").then((m) => ({
+      default: m.ReportsCharts,
+    })),
+  {
+    loading: () => <Skeleton className="mt-2 h-72 w-full" />,
+  },
+);
+
 export default async function ReportsPage() {
   const scope = await requireModule("reports");
-  const [employees, payrollPeriods, chartData] = await Promise.all([
-    getEmployees(scope),
+  // Parallel: dept rollup (groupBy) + periods (no bank) + chart — no full employee dump.
+  const [deptRollup, payrollPeriods, chartData] = await Promise.all([
+    getEmployeeDepartmentCosts(scope),
     getPayrollPeriods(scope),
     getPayrollChartData(scope),
   ]);
@@ -25,13 +37,6 @@ export default async function ReportsPage() {
     payrollPeriods.find((p) => p.status === "WAITING") ??
     payrollPeriods.find((p) => p.totalNet > 0) ??
     payrollPeriods[0];
-
-  const departmentCost = Object.entries(
-    employees.reduce<Record<string, number>>((acc, emp) => {
-      acc[emp.department] = (acc[emp.department] ?? 0) + emp.baseSalary;
-      return acc;
-    }, {}),
-  ).map(([department, cost]) => ({ department, cost: cost / 1_000_000 }));
 
   const salaryTrend = chartData.map((p) => ({
     month: p.month,
@@ -84,7 +89,7 @@ export default async function ReportsPage() {
             <CardTitle>Headcount</CardTitle>
           </CardHeader>
           <CardContent className="text-3xl font-bold">
-            {employees.length}
+            {deptRollup.headcount}
           </CardContent>
         </Card>
         <Card>
@@ -92,14 +97,14 @@ export default async function ReportsPage() {
             <CardTitle>Departments</CardTitle>
           </CardHeader>
           <CardContent className="text-3xl font-bold">
-            {departmentCost.length}
+            {deptRollup.departmentCount}
           </CardContent>
         </Card>
       </div>
 
       <ReportsCharts
         salaryTrend={salaryTrend}
-        departmentCost={departmentCost}
+        departmentCost={deptRollup.departmentCost}
       />
       <p className="mt-4 text-xs text-muted-foreground">
         Payroll register CSV is live. Excel/PDF packs are next. Charts load from

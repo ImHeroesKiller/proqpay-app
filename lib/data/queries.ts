@@ -31,9 +31,20 @@ export async function getUsers() {
   return rows.map(mapUser);
 }
 
+/** Login authorize path — minimal columns only (includes passwordHash for compare). */
 export async function getUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email: email.toLowerCase() },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      passwordHash: true,
+      role: true,
+      avatarInitials: true,
+      organizationId: true,
+      companyId: true,
+    },
   });
 }
 
@@ -46,6 +57,26 @@ export async function getEmployees(scope?: SessionScope) {
   return rows.map(mapEmployee);
 }
 
+/** Department cost rollup without shipping full employee rows to the reports page. */
+export async function getEmployeeDepartmentCosts(scope?: SessionScope) {
+  const where = scope ? companyWhere(scope) : {};
+  const groups = await prisma.employee.groupBy({
+    by: ["department"],
+    where,
+    _sum: { baseSalary: true },
+    _count: { _all: true },
+  });
+  const departmentCost = groups
+    .map((g) => ({
+      department: g.department,
+      cost: Number(g._sum.baseSalary ?? 0) / 1_000_000,
+      headcount: g._count._all,
+    }))
+    .sort((a, b) => b.cost - a.cost);
+  const headcount = departmentCost.reduce((n, d) => n + d.headcount, 0);
+  return { departmentCost, headcount, departmentCount: departmentCost.length };
+}
+
 export async function getEmployeeById(id: string, scope?: SessionScope) {
   const row = await prisma.employee.findUnique({ where: { id } });
   if (!row) return null;
@@ -55,14 +86,17 @@ export async function getEmployeeById(id: string, scope?: SessionScope) {
   return mapEmployee(row);
 }
 
+/**
+ * Payroll period list — no bank join (list UIs do not show source bank).
+ * Use getPayrollPeriodById for detail screens that need sourceBankLabel.
+ */
 export async function getPayrollPeriods(scope?: SessionScope) {
   const where = scope ? companyWhere(scope) : {};
   const rows = await prisma.payrollPeriod.findMany({
     where,
-    include: { sourceBankAccount: true },
     orderBy: { periodStart: "desc" },
   });
-  return rows.map((r) => mapPayrollPeriod(r, r.sourceBankAccount));
+  return rows.map((r) => mapPayrollPeriod(r));
 }
 
 export async function getPayrollPeriodById(id: string, scope?: SessionScope) {
@@ -93,11 +127,16 @@ export async function getApprovalSteps(periodId?: string) {
   return rows.map(mapApprovalStep);
 }
 
+/**
+ * Single-query disbursement list.
+ * Previously: getPayrollPeriods (with bank join) → filter ids → batches (2 RTTs).
+ */
 export async function getDisbursements(scope?: SessionScope) {
-  const periods = await getPayrollPeriods(scope);
-  const ids = periods.map((p) => p.id);
+  const where = scope ? companyWhere(scope) : {};
   const rows = await prisma.disbursementBatch.findMany({
-    where: ids.length ? { payrollPeriodId: { in: ids } } : undefined,
+    where: where.companyId
+      ? { payrollPeriod: { companyId: where.companyId } }
+      : undefined,
     orderBy: { createdAt: "desc" },
   });
   return rows.map(mapDisbursement);
@@ -118,10 +157,25 @@ export async function getPaymentInstructions(scope?: SessionScope) {
   const where = scope ? companyWhere(scope) : {};
   const rows = await prisma.paymentInstruction.findMany({
     where,
-    include: { sourceBankAccount: true },
+    include: {
+      sourceBankAccount: {
+        select: {
+          id: true,
+          label: true,
+          bank: true,
+          account: true,
+          maskedAccountNumber: true,
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
-  return rows.map((r) => mapPaymentInstruction(r, r.sourceBankAccount));
+  return rows.map((r) =>
+    mapPaymentInstruction(
+      r,
+      r.sourceBankAccount as Parameters<typeof mapPaymentInstruction>[1],
+    ),
+  );
 }
 
 export async function getAuditLogs(scope?: SessionScope) {
