@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
+import { DashboardChartsLazy } from "@/components/dashboard/dashboard-charts-lazy";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -138,7 +138,7 @@ export async function DashboardSecondarySection({
             </CardDescription>
           </CardHeader>
           <CardContent className="h-72">
-            <DashboardCharts data={data.chartData} />
+            <DashboardChartsLazy data={data.chartData} />
           </CardContent>
         </Card>
 

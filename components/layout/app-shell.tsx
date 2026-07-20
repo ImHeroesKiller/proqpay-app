@@ -1,20 +1,49 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { CommandPalette, useCommandPaletteHotkey } from "@/components/command/command-palette";
-import { HelpCenter } from "@/components/help/help-center";
-import {
-  FirstLoginOnboarding,
-  ProductTour,
-} from "@/components/onboarding/product-tour";
+import { useCommandPaletteHotkey } from "@/components/command/use-command-palette-hotkey";
 import { useSidebarPreference } from "@/lib/hooks/use-sidebar-preference";
 import { useOnboardingState } from "@/lib/hooks/use-onboarding";
 import { useSession } from "next-auth/react";
 import type { Role } from "@/types";
 import { cn } from "@/lib/utils";
+
+/** Heavy overlays — not needed for first paint of page content. */
+const CommandPalette = dynamic(
+  () =>
+    import("@/components/command/command-palette").then((m) => ({
+      default: m.CommandPalette,
+    })),
+  { ssr: false },
+);
+
+const HelpCenter = dynamic(
+  () =>
+    import("@/components/help/help-center").then((m) => ({
+      default: m.HelpCenter,
+    })),
+  { ssr: false },
+);
+
+const FirstLoginOnboarding = dynamic(
+  () =>
+    import("@/components/onboarding/product-tour").then((m) => ({
+      default: m.FirstLoginOnboarding,
+    })),
+  { ssr: false },
+);
+
+const ProductTour = dynamic(
+  () =>
+    import("@/components/onboarding/product-tour").then((m) => ({
+      default: m.ProductTour,
+    })),
+  { ssr: false },
+);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -109,39 +138,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <CommandPalette
-        open={commandOpen}
-        onOpenChange={setCommandOpen}
-        onOpenHelp={() => setHelpOpen(true)}
-        onStartTour={startTour}
-      />
-      <HelpCenter
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-        onStartTour={startTour}
-      />
-      <FirstLoginOnboarding
-        open={showFirstLogin}
-        onSkip={() => {
-          onboarding.completeFirstLogin();
-          onboarding.completeTour();
-        }}
-        onContinue={() => {
-          onboarding.completeFirstLogin();
-          setTourForced(true);
-        }}
-      />
-      <ProductTour
-        open={!!showTour && !showFirstLogin}
-        onSkip={() => {
-          setTourForced(false);
-          onboarding.completeTour();
-        }}
-        onComplete={() => {
-          setTourForced(false);
-          onboarding.completeTour();
-        }}
-      />
+      {commandOpen ? (
+        <CommandPalette
+          open={commandOpen}
+          onOpenChange={setCommandOpen}
+          onOpenHelp={() => setHelpOpen(true)}
+          onStartTour={startTour}
+        />
+      ) : null}
+      {helpOpen ? (
+        <HelpCenter
+          open={helpOpen}
+          onOpenChange={setHelpOpen}
+          onStartTour={startTour}
+        />
+      ) : null}
+      {showFirstLogin ? (
+        <FirstLoginOnboarding
+          open={showFirstLogin}
+          onSkip={() => {
+            onboarding.completeFirstLogin();
+            onboarding.completeTour();
+          }}
+          onContinue={() => {
+            onboarding.completeFirstLogin();
+            setTourForced(true);
+          }}
+        />
+      ) : null}
+      {!!showTour && !showFirstLogin ? (
+        <ProductTour
+          open
+          onSkip={() => {
+            setTourForced(false);
+            onboarding.completeTour();
+          }}
+          onComplete={() => {
+            setTourForced(false);
+            onboarding.completeTour();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
