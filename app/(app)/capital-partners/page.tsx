@@ -14,6 +14,7 @@ export default async function CapitalPartnersPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Finance"
         title="Capital partners"
         description="Internal funding partners. Terms and exposures are confidential operational data."
       />

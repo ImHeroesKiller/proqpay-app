@@ -9,14 +9,16 @@ import {
   getPayrollChartData,
   getPayrollPeriods,
 } from "@/lib/data/queries";
+import { requireModule } from "@/lib/auth/session";
 import { formatRupiah } from "@/lib/utils";
 import { Download } from "lucide-react";
 
 export default async function ReportsPage() {
+  const scope = await requireModule("reports");
   const [employees, payrollPeriods, chartData] = await Promise.all([
-    getEmployees(),
-    getPayrollPeriods(),
-    getPayrollChartData(),
+    getEmployees(scope),
+    getPayrollPeriods(scope),
+    getPayrollChartData(scope),
   ]);
 
   const latest =
@@ -39,8 +41,9 @@ export default async function ReportsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Governance"
         title="Reports"
-        description="Executive payroll summary, department cost, and trends."
+        description="Executive payroll summary, department cost, and trends. Export respects your authenticated session."
         actions={
           <>
             <Button asChild variant="outline" size="sm">

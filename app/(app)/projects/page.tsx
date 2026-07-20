@@ -13,6 +13,7 @@ export default async function ProjectsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title="Projects"
         description="First-class project objects for event, outsourcing, security, cleaning, and site-based payroll. Employees and payroll periods can be linked to projects."
       />

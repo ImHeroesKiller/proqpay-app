@@ -14,6 +14,7 @@ export default async function AttendancePage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title="Attendance"
         description="Attendance summary for payroll calculation (present, leave, overtime). Import CSV/Excel and full adjustment workflows are staged; records below drive the payroll engine attendance factor when present."
       />

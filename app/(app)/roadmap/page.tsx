@@ -6,6 +6,7 @@ export default function RoadmapPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Administration"
         title="Product roadmap"
         description="Modules planned beyond the payroll operating system core."
       />

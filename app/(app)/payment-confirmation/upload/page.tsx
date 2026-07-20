@@ -26,6 +26,7 @@ export default async function UploadProofPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title="Upload transfer proof"
         description="After the client transfers salaries from the client bank account, upload PDF/PNG/JPG proof (max 10 MB). Storage is private (signed URLs only)."
       />

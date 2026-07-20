@@ -15,6 +15,7 @@ export default async function SalesPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Commercial"
         title="Sales pipeline"
         description="Internal commercial pipeline only. Not exposed on the public website or to client users."
       />

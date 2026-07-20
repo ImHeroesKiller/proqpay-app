@@ -41,6 +41,7 @@ export default async function PayrollDetailPage({
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title={period.name}
         description="Indonesian payroll run: recalculate (BPJS/PPh21 TER simplified), submit approval, generate payment instruction, then client transfer + proof."
         actions={
@@ -62,7 +63,7 @@ export default async function PayrollDetailPage({
         <PayrollPeriodActions periodId={period.id} status={period.status} />
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <StatusBadge status={period.status} />
         <Badge variant="secondary">
           {fundingModelLabel(period.fundingModel)}
@@ -75,6 +76,17 @@ export default async function PayrollDetailPage({
         </span>
       </div>
 
+      <div className="mb-5 rounded-lg border border-border bg-msg-blue/5 px-4 py-3 text-sm">
+        <p className="font-semibold text-foreground">What happens next</p>
+        <p className="mt-1 text-muted-foreground">
+          {workflow.find((s) => s.state === "current")?.label
+            ? `Current step: ${workflow.find((s) => s.state === "current")?.label}. Complete required actions for your role, then advance the period.`
+            : "Workflow complete or not started — review totals and history below."}{" "}
+          Partner capital never pays employees directly; client bank remains the
+          transfer source.
+        </p>
+      </div>
+
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -84,6 +96,9 @@ export default async function PayrollDetailPage({
             <p className="mb-4 text-sm text-muted-foreground">
               {fundingModelDescription(period.fundingModel)}
             </p>
+            <div className="mb-4 hidden sm:block">
+              <WorkflowTimeline steps={workflow} orientation="horizontal" />
+            </div>
             <WorkflowTimeline steps={workflow} />
           </CardContent>
         </Card>

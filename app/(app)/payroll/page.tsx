@@ -12,8 +12,9 @@ export default async function PayrollPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title="Payroll"
-        description="Indonesian payroll periods — open a period to recalculate (BPJS/PPh21), submit approval, and generate payment instructions."
+        description="Indonesian payroll periods — recalculate (BPJS/PPh21), submit approval, generate payment instructions, then client transfer confirmation."
       />
       <PayrollTable data={payrollPeriods} />
     </div>

@@ -25,6 +25,7 @@ export default async function ApprovalPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title="Approval workflow"
         description="Multi-level payroll approvals. Approve or reject pending steps; all actions are audited."
       />

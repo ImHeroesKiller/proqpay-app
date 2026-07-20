@@ -14,6 +14,7 @@ export default async function PricingPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Finance"
         title="Pricing rules"
         description="Confidential commercial pricing. Rates are never shown on public pages or to unauthorized roles."
       />
