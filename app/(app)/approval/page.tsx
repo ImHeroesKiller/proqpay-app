@@ -4,15 +4,18 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ApprovalStepActions } from "@/components/approval/approval-actions";
 import {
   getApprovalSteps,
   getPayrollPeriods,
 } from "@/lib/data/queries";
+import { requireModule } from "@/lib/auth/session";
 import { formatDate } from "@/lib/utils";
 import { Check, Circle, X } from "lucide-react";
 
 export default async function ApprovalPage() {
-  const periods = await getPayrollPeriods();
+  const scope = await requireModule("approval");
+  const periods = await getPayrollPeriods(scope);
   const period =
     periods.find((p) => p.status === "WAITING") ??
     periods.find((p) => p.status === "APPROVED") ??
@@ -23,7 +26,7 @@ export default async function ApprovalPage() {
     <div>
       <PageHeader
         title="Approval workflow"
-        description="Multi-level payroll approvals with full history."
+        description="Multi-level payroll approvals. Approve or reject pending steps; all actions are audited."
       />
 
       <Card className="mb-6">
@@ -41,7 +44,8 @@ export default async function ApprovalPage() {
       <div className="relative space-y-0">
         {steps.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No approval steps for this period.
+            No approval steps for this period. Submit a draft payroll from the
+            period detail page.
           </p>
         ) : null}
         {steps.map((step, index) => {
@@ -68,8 +72,8 @@ export default async function ApprovalPage() {
                 <Icon className="h-4 w-4" />
               </div>
               <Card className="flex-1">
-                <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
+                <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold">
                         Level {step.level} · {step.approverName}
@@ -84,9 +88,14 @@ export default async function ApprovalPage() {
                       </p>
                     ) : (
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Awaiting action
+                        {step.status === "PENDING"
+                          ? "Awaiting action"
+                          : "Action recorded"}
                       </p>
                     )}
+                    {step.status === "PENDING" ? (
+                      <ApprovalStepActions stepId={step.id} />
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <StatusBadge status={step.status} />

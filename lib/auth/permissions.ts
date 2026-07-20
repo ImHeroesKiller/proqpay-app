@@ -4,6 +4,8 @@ import type { Role } from "@/types";
 export type AppModule =
   | "dashboard"
   | "employees"
+  | "projects"
+  | "attendance"
   | "payroll"
   | "approval"
   | "payment_instructions"
@@ -33,6 +35,8 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
   SUPER_ADMIN: [
     "dashboard",
     "employees",
+    "projects",
+    "attendance",
     "payroll",
     "approval",
     "payment_instructions",
@@ -52,6 +56,8 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
   DIRECTOR: [
     "dashboard",
     "employees",
+    "projects",
+    "attendance",
     "payroll",
     "approval",
     "payment_instructions",
@@ -66,11 +72,36 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "pricing",
     "capital_partners",
     "capital_allocations",
-    "roadmap",
+  ],
+  PAYROLL_ADMIN: [
+    "dashboard",
+    "employees",
+    "projects",
+    "attendance",
+    "payroll",
+    "approval",
+    "payment_instructions",
+    "payment_confirmation",
+    "working_capital",
+    "disbursement",
+    "reports",
+    "audit",
+    "settings",
+  ],
+  PAYROLL_OPERATOR: [
+    "dashboard",
+    "employees",
+    "projects",
+    "attendance",
+    "payroll",
+    "payment_instructions",
+    "payment_confirmation",
+    "reports",
   ],
   FINANCE: [
     "dashboard",
     "employees",
+    "projects",
     "payroll",
     "approval",
     "payment_instructions",
@@ -82,21 +113,16 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "settings",
     "capital_partners",
     "capital_allocations",
-    "roadmap",
   ],
-  PAYROLL_ADMIN: [
+  HR: [
     "dashboard",
     "employees",
+    "projects",
+    "attendance",
     "payroll",
-    "approval",
-    "payment_instructions",
     "payment_confirmation",
-    "working_capital",
-    "disbursement",
     "reports",
-    "audit",
     "settings",
-    "roadmap",
   ],
   APPROVER: [
     "dashboard",
@@ -106,18 +132,16 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payment_confirmation",
     "reports",
     "audit",
-    "roadmap",
   ],
-  HR: [
+  AUDITOR: [
     "dashboard",
-    "employees",
     "payroll",
+    "payment_instructions",
     "payment_confirmation",
     "reports",
-    "settings",
-    "roadmap",
+    "audit",
   ],
-  VIEWER: ["dashboard", "payroll", "payment_confirmation", "reports", "audit", "roadmap"],
+  VIEWER: ["dashboard", "payroll", "reports"],
 };
 
 export function canAccessModule(role: Role, module: AppModule): boolean {

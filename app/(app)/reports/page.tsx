@@ -43,17 +43,19 @@ export default async function ReportsPage() {
         description="Executive payroll summary, department cost, and trends."
         actions={
           <>
-            <Button variant="outline" size="sm" disabled>
-              <Download className="h-3.5 w-3.5" />
-              CSV
+            <Button asChild variant="outline" size="sm">
+              <a href="/api/reports/payroll-register">
+                <Download className="h-3.5 w-3.5" />
+                Payroll register CSV
+              </a>
             </Button>
             <Button variant="outline" size="sm" disabled>
               <Download className="h-3.5 w-3.5" />
-              Excel
+              Excel (next)
             </Button>
             <Button variant="outline" size="sm" disabled>
               <Download className="h-3.5 w-3.5" />
-              PDF
+              PDF (next)
             </Button>
           </>
         }
@@ -97,8 +99,8 @@ export default async function ReportsPage() {
         departmentCost={departmentCost}
       />
       <p className="mt-4 text-xs text-muted-foreground">
-        Export buttons are UX placeholders for PDF / Excel / CSV generation.
-        Charts and KPIs are loaded from Supabase PostgreSQL.
+        Payroll register CSV is live. Excel/PDF packs are next. Charts load from
+        Supabase PostgreSQL (BPJS/PPh21 totals available on recalculated periods).
       </p>
     </div>
   );

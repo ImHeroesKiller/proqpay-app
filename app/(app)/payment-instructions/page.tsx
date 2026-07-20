@@ -4,11 +4,13 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { requireModule } from "@/lib/auth/session";
 import { getPaymentInstructions } from "@/lib/data/queries";
 import { formatRupiah } from "@/lib/utils";
 import { fundingModelLabel } from "@/lib/domain/workflow";
 import { executionModelLabel } from "@/lib/domain/confirmation";
+import { Download } from "lucide-react";
 
 export default async function PaymentInstructionsPage() {
   const scope = await requireModule("payment_instructions");
@@ -49,11 +51,17 @@ export default async function PaymentInstructionsPage() {
                   Next: client transfer → upload proof in Payment confirmation
                 </p>
               </div>
-              <div className="flex flex-col items-start gap-1 sm:items-end">
+              <div className="flex flex-col items-start gap-2 sm:items-end">
                 <StatusBadge status={pi.executionStatus} />
                 <span className="text-xs text-muted-foreground">
                   Approval: {pi.approvalStatus}
                 </span>
+                <Button asChild size="sm" variant="outline">
+                  <a href={`/api/payment-instructions/${pi.id}/download`}>
+                    <Download className="h-3.5 w-3.5" />
+                    Download CSV
+                  </a>
+                </Button>
               </div>
             </CardContent>
           </Card>

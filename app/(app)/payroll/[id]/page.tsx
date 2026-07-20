@@ -20,6 +20,7 @@ import {
   fundingModelDescription,
   fundingModelLabel,
 } from "@/lib/domain/workflow";
+import { PayrollPeriodActions } from "@/components/payroll/payroll-actions";
 
 export default async function PayrollDetailPage({
   params,
@@ -41,7 +42,7 @@ export default async function PayrollDetailPage({
     <div>
       <PageHeader
         title={period.name}
-        description="After instruction, client transfers from the client bank and uploads proof. Verification closes payroll (or opens WC settlement)."
+        description="Indonesian payroll run: recalculate (BPJS/PPh21 TER simplified), submit approval, generate payment instruction, then client transfer + proof."
         actions={
           <>
             <Button asChild variant="outline" size="sm">
@@ -56,6 +57,10 @@ export default async function PayrollDetailPage({
           </>
         }
       />
+
+      <div className="mb-4">
+        <PayrollPeriodActions periodId={period.id} status={period.status} />
+      </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <StatusBadge status={period.status} />

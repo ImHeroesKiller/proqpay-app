@@ -1,10 +1,12 @@
 export type Role =
   | "SUPER_ADMIN"
   | "PAYROLL_ADMIN"
+  | "PAYROLL_OPERATOR"
   | "FINANCE"
   | "HR"
   | "DIRECTOR"
   | "APPROVER"
+  | "AUDITOR"
   | "VIEWER";
 
 export type PayrollStatus =

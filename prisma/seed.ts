@@ -1110,6 +1110,148 @@ async function main() {
     },
   }).catch(() => undefined);
 
+
+  // ── Enterprise org / project / attendance / statutory (additive) ──
+  const branchId = stableId("branch:hq");
+  await prisma.branch.upsert({
+    where: { companyId_code: { companyId: COMPANY_ID, code: "HQ" } },
+    create: { id: branchId, companyId: COMPANY_ID, code: "HQ", name: "Head Office Jakarta" },
+    update: { name: "Head Office Jakarta" },
+  });
+  for (const [code, name] of [["OPS","Operations"],["FIN","Finance"],["HR","Human Resources"]] as const) {
+    await prisma.department.upsert({
+      where: { companyId_code: { companyId: COMPANY_ID, code } },
+      create: { id: stableId(`dept:${code}`), companyId: COMPANY_ID, code, name },
+      update: { name },
+    });
+  }
+  await prisma.position.upsert({
+    where: { companyId_code: { companyId: COMPANY_ID, code: "STAFF" } },
+    create: { id: stableId("pos:staff"), companyId: COMPANY_ID, code: "STAFF", name: "Staff", grade: "G3" },
+    update: { name: "Staff" },
+  });
+  await prisma.costCenter.upsert({
+    where: { companyId_code: { companyId: COMPANY_ID, code: "CC-PAY" } },
+    create: { id: stableId("cc:pay"), companyId: COMPANY_ID, code: "CC-PAY", name: "Payroll Ops" },
+    update: { name: "Payroll Ops" },
+  });
+
+  const levels: { level: number; role: "PAYROLL_ADMIN"|"FINANCE"|"DIRECTOR"; name: string }[] = [
+    { level: 1, role: "PAYROLL_ADMIN", name: "Default Payroll Matrix" },
+    { level: 2, role: "FINANCE", name: "Default Payroll Matrix" },
+    { level: 3, role: "DIRECTOR", name: "Default Payroll Matrix" },
+  ];
+  for (const m of levels) {
+    await prisma.approvalMatrix.upsert({
+      where: { companyId_name_level: { companyId: COMPANY_ID, name: m.name, level: m.level } },
+      create: { id: stableId(`am:${m.level}`), companyId: COMPANY_ID, name: m.name, level: m.level, role: m.role },
+      update: { role: m.role },
+    });
+  }
+
+  const comps = [
+    { code: "BASIC", name: "Basic Salary", kind: "BASIC" as const, amount: 0 },
+    { code: "ALLOW", name: "Fixed Allowance", kind: "ALLOWANCE" as const, amount: 0 },
+    { code: "OT", name: "Overtime", kind: "OVERTIME" as const, amount: 0 },
+    { code: "BPJS_EE", name: "BPJS Employee", kind: "BPJS_EMPLOYEE" as const, amount: 0 },
+    { code: "PPH21", name: "PPh 21", kind: "PPH21" as const, amount: 0 },
+  ];
+  for (const [i, c] of comps.entries()) {
+    await prisma.payrollComponent.upsert({
+      where: { companyId_code: { companyId: COMPANY_ID, code: c.code } },
+      create: {
+        id: stableId(`pc:${c.code}`),
+        companyId: COMPANY_ID,
+        code: c.code,
+        name: c.name,
+        kind: c.kind,
+        defaultAmount: c.amount,
+        sortOrder: i,
+      },
+      update: { name: c.name },
+    });
+  }
+
+  await prisma.bpjsConfig.upsert({
+    where: { id: stableId("bpjs:default") },
+    create: {
+      id: stableId("bpjs:default"),
+      companyId: COMPANY_ID,
+      name: "BPJS Default",
+      effectiveFrom: new Date("2026-01-01"),
+    },
+    update: { isActive: true },
+  });
+  await prisma.taxConfig.upsert({
+    where: { id: stableId("tax:default") },
+    create: {
+      id: stableId("tax:default"),
+      companyId: COMPANY_ID,
+      name: "TER Default",
+      method: "TER",
+      effectiveFrom: new Date("2026-01-01"),
+    },
+    update: { isActive: true },
+  });
+
+  const projectId = stableId("project:demo");
+  await prisma.project.upsert({
+    where: { companyId_code: { companyId: COMPANY_ID, code: "PRJ-DEMO" } },
+    create: {
+      id: projectId,
+      companyId: COMPANY_ID,
+      code: "PRJ-DEMO",
+      name: "Demo Event Ops",
+      clientName: "Demo Client Event",
+      site: "JIExpo",
+      location: "Jakarta",
+      status: "ACTIVE",
+      branchId,
+      startDate: new Date("2026-01-01"),
+    },
+    update: { name: "Demo Event Ops", status: "ACTIVE" },
+  });
+
+  const emps = await prisma.employee.findMany({ where: { companyId: COMPANY_ID }, take: 5 });
+  for (const e of emps) {
+    await prisma.projectAssignment.upsert({
+      where: {
+        projectId_employeeId_startDate: {
+          projectId,
+          employeeId: e.id,
+          startDate: new Date("2026-01-01"),
+        },
+      },
+      create: {
+        id: stableId(`pa:${e.id}`),
+        projectId,
+        employeeId: e.id,
+        startDate: new Date("2026-01-01"),
+        roleLabel: "Crew",
+      },
+      update: { isActive: true },
+    });
+    await prisma.attendanceRecord.upsert({
+      where: {
+        employeeId_workDate: {
+          employeeId: e.id,
+          workDate: new Date("2026-06-02"),
+        },
+      },
+      create: {
+        id: stableId(`att:${e.id}:0602`),
+        companyId: COMPANY_ID,
+        employeeId: e.id,
+        projectId,
+        workDate: new Date("2026-06-02"),
+        type: "PRESENT",
+        hoursWorked: 8,
+        overtimeHours: 1,
+      },
+      update: { hoursWorked: 8 },
+    });
+  }
+
   console.log("Seed complete:", {
     organization: 1,
     company: 1,
