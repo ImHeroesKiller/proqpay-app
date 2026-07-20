@@ -6,8 +6,14 @@ import { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DEMO_PASSWORD, users } from "@/lib/data/seed";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/data/constants";
 
 function LoginForm() {
   const router = useRouter();
@@ -89,8 +95,8 @@ function LoginForm() {
               <p className="font-semibold text-foreground">Demo accounts</p>
               <p className="mt-1">Password for all: {DEMO_PASSWORD}</p>
               <ul className="mt-2 space-y-1">
-                {users.slice(0, 4).map((u) => (
-                  <li key={u.id}>
+                {DEMO_ACCOUNTS.slice(0, 4).map((u) => (
+                  <li key={u.email}>
                     <button
                       type="button"
                       className="text-left hover:text-orange"
@@ -111,7 +117,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

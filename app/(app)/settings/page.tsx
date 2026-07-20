@@ -1,9 +1,32 @@
+export const dynamic = "force-dynamic";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { companySettings, users } from "@/lib/data/seed";
+import { getCompanySettings, getUsers } from "@/lib/data/queries";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const [companySettings, users] = await Promise.all([
+    getCompanySettings(),
+    getUsers(),
+  ]);
+
+  const settings = companySettings ?? {
+    name: "—",
+    legalName: "—",
+    npwp: "—",
+    address: "—",
+    payDay: 5,
+    currency: "IDR",
+    approvalLevels: [
+      "Payroll Admin",
+      "Finance Manager",
+      "Finance Control",
+      "Director",
+    ],
+    bankAccounts: [] as { bank: string; account: string; label: string }[],
+  };
+
   return (
     <div>
       <PageHeader
@@ -17,10 +40,10 @@ export default function SettingsPage() {
             <CardTitle>Company</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Name" value={companySettings.name} />
-            <Row label="Legal" value={companySettings.legalName} />
-            <Row label="NPWP" value={companySettings.npwp} />
-            <Row label="Address" value={companySettings.address} />
+            <Row label="Name" value={settings.name} />
+            <Row label="Legal" value={settings.legalName} />
+            <Row label="NPWP" value={settings.npwp} />
+            <Row label="Address" value={settings.address} />
           </CardContent>
         </Card>
 
@@ -29,8 +52,8 @@ export default function SettingsPage() {
             <CardTitle>Payroll rules</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Default pay day" value={`Day ${companySettings.payDay}`} />
-            <Row label="Currency" value={companySettings.currency} />
+            <Row label="Default pay day" value={`Day ${settings.payDay}`} />
+            <Row label="Currency" value={settings.currency} />
             <p className="text-xs text-muted-foreground">
               Allowances, deductions, and overtime formulas are configurable in
               future releases.
@@ -43,7 +66,7 @@ export default function SettingsPage() {
             <CardTitle>Approval workflow</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {companySettings.approvalLevels.map((level, index) => (
+            {settings.approvalLevels.map((level, index) => (
               <div
                 key={level}
                 className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
@@ -60,7 +83,10 @@ export default function SettingsPage() {
             <CardTitle>Bank accounts</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {companySettings.bankAccounts.map((bank) => (
+            {settings.bankAccounts.length === 0 ? (
+              <p className="text-muted-foreground">No bank accounts configured.</p>
+            ) : null}
+            {settings.bankAccounts.map((bank) => (
               <div
                 key={bank.account}
                 className="rounded-lg border border-border p-3"
@@ -91,7 +117,10 @@ export default function SettingsPage() {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id} className="border-b border-border last:border-0">
+                    <tr
+                      key={user.id}
+                      className="border-b border-border last:border-0"
+                    >
                       <td className="px-2 py-2.5 font-medium">{user.name}</td>
                       <td className="px-2 py-2.5 text-muted-foreground">
                         {user.email}
@@ -111,7 +140,8 @@ export default function SettingsPage() {
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               Architecture supports RBAC, MFA, and session timeout (8h JWT max
-              age configured).
+              age configured). Users are stored in Supabase; Auth.js issues JWT
+              sessions.
             </p>
           </CardContent>
         </Card>

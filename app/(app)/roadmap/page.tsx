@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { ComingSoon } from "@/components/shared/coming-soon";
-import { comingSoonModules } from "@/lib/data/seed";
+import { comingSoonModules } from "@/lib/data/constants";
 
 export default function RoadmapPage() {
   return (

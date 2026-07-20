@@ -1,12 +1,16 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { users, DEMO_PASSWORD } from "@/lib/data/seed";
+import { compare } from "bcryptjs";
+import { authConfig } from "@/lib/auth.config";
+import { getUserByEmail } from "@/lib/data/queries";
 import type { Role } from "@/types";
 
 declare module "next-auth" {
   interface User {
     role: Role;
     avatarInitials: string;
+    organizationId?: string;
+    companyId?: string | null;
   }
   interface Session {
     user: {
@@ -15,11 +19,14 @@ declare module "next-auth" {
       email?: string | null;
       role: Role;
       avatarInitials: string;
+      organizationId?: string;
+      companyId?: string | null;
     };
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "Credentials",
@@ -28,46 +35,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = String(credentials?.email ?? "").toLowerCase();
+        const email = String(credentials?.email ?? "")
+          .toLowerCase()
+          .trim();
         const password = String(credentials?.password ?? "");
-        const user = users.find((u) => u.email.toLowerCase() === email);
-        if (!user || password !== DEMO_PASSWORD) {
-          return null;
-        }
+        if (!email || !password) return null;
+
+        const user = await getUserByEmail(email);
+        if (!user) return null;
+
+        const valid = await compare(password, user.passwordHash);
+        if (!valid) return null;
+
         return {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role,
+          role: user.role as Role,
           avatarInitials: user.avatarInitials,
+          organizationId: user.organizationId,
+          companyId: user.companyId,
         };
       },
     }),
   ],
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 8 * 60 * 60,
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id ?? "";
-        token.role = user.role;
-        token.avatarInitials = user.avatarInitials;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = String(token.id ?? "");
-        session.user.role = (token.role as Role) ?? "VIEWER";
-        session.user.avatarInitials = String(token.avatarInitials ?? "U");
-      }
-      return session;
-    },
-  },
-  trustHost: true,
 });

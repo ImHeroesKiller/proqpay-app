@@ -1,10 +1,12 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { employees } from "@/lib/data/seed";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getEmployeeById } from "@/lib/data/queries";
 import { formatDate, formatRupiah } from "@/lib/utils";
 
 export default async function EmployeeDetailPage({
@@ -13,8 +15,11 @@ export default async function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const employee = employees.find((e) => e.id === id);
-  if (!employee) notFound();
+  const employee = await getEmployeeById(id);
+
+  if (!employee) {
+    notFound();
+  }
 
   return (
     <div>
@@ -23,7 +28,7 @@ export default async function EmployeeDetailPage({
         description={`${employee.employeeCode} · ${employee.position}`}
         actions={
           <Button asChild variant="outline" size="sm">
-            <Link href="/employees">Back to directory</Link>
+            <Link href="/employees">Back to list</Link>
           </Button>
         }
       />
@@ -32,48 +37,29 @@ export default async function EmployeeDetailPage({
         <StatusBadge status={employee.status} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
+            <CardTitle>Employment</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Email" value={employee.email} />
-            <Row label="Phone" value={employee.phone} />
             <Row label="Department" value={employee.department} />
             <Row label="Position" value={employee.position} />
             <Row label="Join date" value={formatDate(employee.joinDate)} />
+            <Row label="Email" value={employee.email} />
+            <Row label="Phone" value={employee.phone} />
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Employment & salary</CardTitle>
+            <CardTitle>Compensation & compliance</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Status" value={employee.status} />
             <Row label="Base salary" value={formatRupiah(employee.baseSalary)} />
+            <Row label="Bank" value={`${employee.bankName} · ${employee.bankAccount}`} />
             <Row label="Tax status" value={employee.taxStatus} />
+            <Row label="BPJS" value={employee.bpjsNumber} />
             <Row label="NPWP" value={employee.npwp} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Bank" value={employee.bankName} />
-            <Row label="Account" value={employee.bankAccount} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>BPJS (placeholder)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="BPJS number" value={employee.bpjsNumber} />
-            <p className="text-xs text-muted-foreground">
-              Full BPJS administration module is on the product roadmap.
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -83,7 +69,7 @@ export default async function EmployeeDetailPage({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border py-2 last:border-0">
+    <div className="flex justify-between gap-4 border-b border-border py-2 last:border-0">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right font-medium">{value}</span>
     </div>

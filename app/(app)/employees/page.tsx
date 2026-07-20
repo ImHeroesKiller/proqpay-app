@@ -1,46 +1,14 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import { type ColumnDef } from "@tanstack/react-table";
 import { PageHeader } from "@/components/shared/page-header";
-import { DataTable } from "@/components/shared/data-table";
-import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
-import { employees } from "@/lib/data/seed";
-import { formatRupiah } from "@/lib/utils";
-import type { Employee } from "@/types";
+import { EmployeesTable } from "@/components/employees/employees-table";
+import { getEmployees } from "@/lib/data/queries";
 import { Upload } from "lucide-react";
 
-const columns: ColumnDef<Employee>[] = [
-  {
-    accessorKey: "employeeCode",
-    header: "Code",
-    cell: ({ row }) => (
-      <Link
-        href={`/employees/${row.original.id}`}
-        className="font-medium text-msg-blue hover:underline dark:text-sky-300"
-      >
-        {row.original.employeeCode}
-      </Link>
-    ),
-  },
-  { accessorKey: "name", header: "Name" },
-  { accessorKey: "department", header: "Department" },
-  { accessorKey: "position", header: "Position" },
-  {
-    accessorKey: "baseSalary",
-    header: "Base salary",
-    cell: ({ row }) => formatRupiah(row.original.baseSalary),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
-  },
-  { accessorKey: "bankName", header: "Bank" },
-];
+export default async function EmployeesPage() {
+  const employees = await getEmployees();
 
-export default function EmployeesPage() {
   return (
     <div>
       <PageHeader
@@ -59,13 +27,10 @@ export default function EmployeesPage() {
         }
       />
       <p className="mb-4 text-xs text-muted-foreground">
-        Bulk upload is a placeholder for future CSV/XLSX import.
+        Bulk upload is a placeholder for future CSV/XLSX import. Data source:
+        Supabase PostgreSQL via Prisma.
       </p>
-      <DataTable
-        columns={columns}
-        data={employees}
-        searchPlaceholder="Search employees, departments, banks..."
-      />
+      <EmployeesTable data={employees} />
     </div>
   );
 }

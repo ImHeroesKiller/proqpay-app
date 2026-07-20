@@ -1,14 +1,23 @@
+export const dynamic = "force-dynamic";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { approvalSteps, payrollPeriods } from "@/lib/data/seed";
+import {
+  getApprovalSteps,
+  getPayrollPeriods,
+} from "@/lib/data/queries";
 import { formatDate } from "@/lib/utils";
 import { Check, Circle, X } from "lucide-react";
 
-export default function ApprovalPage() {
-  const period = payrollPeriods.find((p) => p.id === "pp_2026_06");
-  const steps = approvalSteps.filter((s) => s.payrollPeriodId === "pp_2026_06");
+export default async function ApprovalPage() {
+  const periods = await getPayrollPeriods();
+  const period =
+    periods.find((p) => p.status === "WAITING") ??
+    periods.find((p) => p.status === "APPROVED") ??
+    periods[0];
+  const steps = period ? await getApprovalSteps(period.id) : [];
 
   return (
     <div>
@@ -30,6 +39,11 @@ export default function ApprovalPage() {
       </Card>
 
       <div className="relative space-y-0">
+        {steps.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No approval steps for this period.
+          </p>
+        ) : null}
         {steps.map((step, index) => {
           const Icon =
             step.status === "APPROVED"

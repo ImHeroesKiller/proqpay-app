@@ -1,25 +1,18 @@
-"use client";
+export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  dashboardAlerts,
-  dashboardKpis,
-  payrollPeriods,
-} from "@/lib/data/seed";
+  getDashboardAlerts,
+  getDashboardKpis,
+  getPayrollChartData,
+  getPayrollPeriods,
+} from "@/lib/data/queries";
 import { formatRupiah } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -29,14 +22,6 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
-const chartData = [
-  { month: "Feb", amount: 108 },
-  { month: "Mar", amount: 112 },
-  { month: "Apr", amount: 111.6 },
-  { month: "May", amount: 121.6 },
-  { month: "Jun", amount: 123.75 },
-];
-
 const alertIcon = {
   warning: AlertTriangle,
   info: Info,
@@ -44,7 +29,15 @@ const alertIcon = {
   success: CheckCircle2,
 } as const;
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [dashboardKpis, dashboardAlerts, payrollPeriods, chartData] =
+    await Promise.all([
+      getDashboardKpis(),
+      getDashboardAlerts(),
+      getPayrollPeriods(),
+      getPayrollChartData(),
+    ]);
+
   const upcoming = payrollPeriods.find((p) => p.status === "WAITING");
 
   return (
@@ -79,19 +72,7 @@ export default function DashboardPage() {
             <CardTitle>Payroll amount trend (IDR juta)</CardTitle>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} />
-                <Tooltip
-                  formatter={(value) =>
-                    formatRupiah(Number(value) * 1_000_000)
-                  }
-                />
-                <Bar dataKey="amount" fill="#0B3A6E" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <DashboardCharts data={chartData} />
           </CardContent>
         </Card>
 

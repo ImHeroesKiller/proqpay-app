@@ -1,14 +1,16 @@
-// ProQPay Enterprise Payroll OS — PostgreSQL schema
-// Production: set DATABASE_URL to PostgreSQL connection string.
-// Local demo uses seed TypeScript data; Prisma is ready for DB-backed mode.
+// ProQPay Enterprise Payroll OS
+// Isolated schema on existing Supabase PostgreSQL project.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["proqpay"]
 }
 
 enum Role {
@@ -19,6 +21,8 @@ enum Role {
   DIRECTOR
   APPROVER
   VIEWER
+
+  @@schema("proqpay")
 }
 
 enum PayrollStatus {
@@ -28,18 +32,24 @@ enum PayrollStatus {
   REJECTED
   LOCKED
   DISBURSED
+
+  @@schema("proqpay")
 }
 
 enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+
+  @@schema("proqpay")
 }
 
 enum DisbursementStatus {
   PENDING
   PAID
   FAILED
+
+  @@schema("proqpay")
 }
 
 enum WorkingCapitalStatus {
@@ -48,6 +58,8 @@ enum WorkingCapitalStatus {
   DISBURSED
   OUTSTANDING
   REPAID
+
+  @@schema("proqpay")
 }
 
 enum EmploymentStatus {
@@ -55,146 +67,239 @@ enum EmploymentStatus {
   PROBATION
   RESIGNED
   TERMINATED
+
+  @@schema("proqpay")
 }
 
-model User {
-  id             String   @id @default(cuid())
-  email          String   @unique
-  name           String
-  passwordHash   String
-  role           Role     @default(VIEWER)
-  department     String?
-  avatarInitials String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  auditLogs      AuditLog[]
-  approvalSteps  ApprovalStep[]
+model Organization {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  companies Company[]
+  users     User[]
+
+  @@map("organizations")
+  @@schema("proqpay")
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  npwp      String?
-  address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  name           String
+  legalName      String?         @map("legal_name")
+  npwp           String?
+  address        String?
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employees      Employee[]
+  payrollPeriods PayrollPeriod[]
+  bankAccounts   BankAccount[]
+  users          User[]
+
+  @@index([organizationId])
+  @@map("companies")
+  @@schema("proqpay")
+}
+
+model User {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  companyId      String?      @map("company_id") @db.Uuid
+  email          String       @unique
+  name           String
+  passwordHash   String       @map("password_hash")
+  role           Role         @default(VIEWER)
+  department     String?
+  avatarInitials String       @map("avatar_initials")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company        Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  auditLogs      AuditLog[]
+  approvalSteps  ApprovalStep[]
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@map("users")
+  @@schema("proqpay")
 }
 
 model Employee {
-  id           String           @id @default(cuid())
-  employeeCode String           @unique
+  id           String           @id @default(uuid()) @db.Uuid
+  companyId    String           @map("company_id") @db.Uuid
+  employeeCode String           @map("employee_code")
   name         String
   email        String
   phone        String
   department   String
   position     String
-  joinDate     DateTime
+  joinDate     DateTime         @map("join_date") @db.Date
   status       EmploymentStatus @default(ACTIVE)
-  baseSalary   Int
-  bankName     String
-  bankAccount  String
-  taxStatus    String
-  bpjsNumber   String
+  baseSalary   Decimal          @map("base_salary") @db.Decimal(18, 2)
+  bankName     String           @map("bank_name")
+  bankAccount  String           @map("bank_account")
+  taxStatus    String           @map("tax_status")
+  bpjsNumber   String           @map("bpjs_number")
   npwp         String
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   payrollLines PayrollLine[]
+
+  @@unique([companyId, employeeCode])
+  @@index([companyId])
+  @@index([department])
+  @@map("employees")
+  @@schema("proqpay")
 }
 
 model PayrollPeriod {
-  id              String              @id @default(cuid())
+  id              String                  @id @default(uuid()) @db.Uuid
+  companyId       String                  @map("company_id") @db.Uuid
   name            String
-  periodStart     DateTime
-  periodEnd       DateTime
-  payDate         DateTime
-  status          PayrollStatus       @default(DRAFT)
-  employeeCount   Int                 @default(0)
-  totalGross      Int                 @default(0)
-  totalDeductions Int                 @default(0)
-  totalNet        Int                 @default(0)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  periodStart     DateTime                @map("period_start") @db.Date
+  periodEnd       DateTime                @map("period_end") @db.Date
+  payDate         DateTime                @map("pay_date") @db.Date
+  status          PayrollStatus           @default(DRAFT)
+  employeeCount   Int                     @default(0) @map("employee_count")
+  totalGross      Decimal                 @default(0) @map("total_gross") @db.Decimal(18, 2)
+  totalDeductions Decimal                 @default(0) @map("total_deductions") @db.Decimal(18, 2)
+  totalNet        Decimal                 @default(0) @map("total_net") @db.Decimal(18, 2)
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+  company         Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   lines           PayrollLine[]
   approvals       ApprovalStep[]
   disbursements   DisbursementBatch[]
   workingCapital  WorkingCapitalRequest[]
+
+  @@index([companyId])
+  @@index([status])
+  @@map("payroll_periods")
+  @@schema("proqpay")
 }
 
 model PayrollLine {
-  id              String        @id @default(cuid())
-  payrollPeriodId String
-  employeeId      String
-  employeeName    String
+  id              String        @id @default(uuid()) @db.Uuid
+  payrollPeriodId String        @map("payroll_period_id") @db.Uuid
+  employeeId      String        @map("employee_id") @db.Uuid
+  employeeName    String        @map("employee_name")
   department      String
-  baseSalary      Int
-  allowances      Int           @default(0)
-  overtime        Int           @default(0)
-  bonuses         Int           @default(0)
-  deductions      Int           @default(0)
-  tax             Int           @default(0)
-  bpjs            Int           @default(0)
-  netPay          Int
-  payrollPeriod   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id])
-  employee        Employee      @relation(fields: [employeeId], references: [id])
+  baseSalary      Decimal       @map("base_salary") @db.Decimal(18, 2)
+  allowances      Decimal       @default(0) @db.Decimal(18, 2)
+  overtime        Decimal       @default(0) @db.Decimal(18, 2)
+  bonuses         Decimal       @default(0) @db.Decimal(18, 2)
+  deductions      Decimal       @default(0) @db.Decimal(18, 2)
+  tax             Decimal       @default(0) @db.Decimal(18, 2)
+  bpjs            Decimal       @default(0) @db.Decimal(18, 2)
+  netPay          Decimal       @map("net_pay") @db.Decimal(18, 2)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  payrollPeriod   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
 
   @@index([payrollPeriodId])
+  @@index([employeeId])
+  @@map("payroll_lines")
+  @@schema("proqpay")
 }
 
 model ApprovalStep {
-  id              String         @id @default(cuid())
-  payrollPeriodId String
+  id              String         @id @default(uuid()) @db.Uuid
+  payrollPeriodId String         @map("payroll_period_id") @db.Uuid
   level           Int
-  approverName    String
+  approverName    String         @map("approver_name")
   role            Role
   status          ApprovalStatus @default(PENDING)
   comment         String?
-  actedAt         DateTime?
-  userId          String?
-  payrollPeriod   PayrollPeriod  @relation(fields: [payrollPeriodId], references: [id])
-  user            User?          @relation(fields: [userId], references: [id])
+  actedAt         DateTime?      @map("acted_at")
+  userId          String?        @map("user_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  payrollPeriod   PayrollPeriod  @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([payrollPeriodId])
+  @@map("approval_steps")
+  @@schema("proqpay")
 }
 
 model DisbursementBatch {
-  id              String             @id @default(cuid())
-  payrollPeriodId String
-  periodName      String
-  bankName        String
-  totalAmount     Int
-  itemCount       Int
+  id              String             @id @default(uuid()) @db.Uuid
+  payrollPeriodId String             @map("payroll_period_id") @db.Uuid
+  periodName      String             @map("period_name")
+  bankName        String             @map("bank_name")
+  totalAmount     Decimal            @map("total_amount") @db.Decimal(18, 2)
+  itemCount       Int                @map("item_count")
   status          DisbursementStatus @default(PENDING)
-  referenceNumber String
-  createdAt       DateTime           @default(now())
-  processedAt     DateTime?
-  payrollPeriod   PayrollPeriod      @relation(fields: [payrollPeriodId], references: [id])
+  referenceNumber String             @map("reference_number")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  processedAt     DateTime?          @map("processed_at")
+  payrollPeriod   PayrollPeriod      @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+
+  @@index([payrollPeriodId])
+  @@index([status])
+  @@map("disbursement_batches")
+  @@schema("proqpay")
 }
 
 model WorkingCapitalRequest {
-  id              String               @id @default(cuid())
-  payrollPeriodId String
-  periodName      String
-  requestedAmount Int
-  approvedAmount  Int                  @default(0)
+  id              String               @id @default(uuid()) @db.Uuid
+  payrollPeriodId String               @map("payroll_period_id") @db.Uuid
+  periodName      String               @map("period_name")
+  requestedAmount Decimal              @map("requested_amount") @db.Decimal(18, 2)
+  approvedAmount  Decimal              @default(0) @map("approved_amount") @db.Decimal(18, 2)
   status          WorkingCapitalStatus @default(REQUESTED)
-  requestedAt     DateTime             @default(now())
-  dueDate         DateTime
-  repaidAmount    Int                  @default(0)
-  payrollPeriod   PayrollPeriod        @relation(fields: [payrollPeriodId], references: [id])
+  requestedAt     DateTime             @default(now()) @map("requested_at")
+  dueDate         DateTime             @map("due_date") @db.Date
+  repaidAmount    Decimal              @default(0) @map("repaid_amount") @db.Decimal(18, 2)
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  payrollPeriod   PayrollPeriod        @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+
+  @@index([payrollPeriodId])
+  @@index([status])
+  @@map("working_capital_requests")
+  @@schema("proqpay")
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  userName  String
-  userRole  Role
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String?  @map("company_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  userName  String   @map("user_name")
+  userRole  Role     @map("user_role")
   action    String
   entity    String
-  entityId  String
+  entityId  String   @map("entity_id")
   timestamp DateTime @default(now())
   ip        String
-  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([timestamp])
   @@index([entity])
+  @@index([companyId])
+  @@map("audit_logs")
+  @@schema("proqpay")
+}
+
+model BankAccount {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  bank      String
+  account   String
+  label     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("bank_accounts")
+  @@schema("proqpay")
 }
