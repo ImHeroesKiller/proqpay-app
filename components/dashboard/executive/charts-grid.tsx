@@ -1,36 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  Area,
+  AreaChart,
 } from "recharts";
-import {
-  APPROVAL_SLA,
-  DISBURSEMENT_TIMELINE,
-  FUNDING_UTIL,
-  PAYMENT_COMPLETION,
-  PAYROLL_BY_BU,
-  PAYROLL_BY_CLIENT,
-  PAYROLL_BY_COST_CENTER,
-  PAYROLL_BY_COUNTRY,
-  TREND_12M,
-} from "@/lib/data/executive-command";
+import type { ExecutiveDashboardData } from "@/lib/data/executive-dashboard";
+import { formatRupiah } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const NAVY = "#0B3A6E";
 const BLUE = "#2563EB";
-const EMERALD = "#10B981";
-const AMBER = "#F59E0B";
 const SLATE = "#94A3B8";
 const GRID = "#E8EEF5";
 
@@ -41,184 +29,244 @@ const tooltipStyle = {
   boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
 };
 
+const TABS = [
+  "Executive",
+  "Geography",
+  "Payroll",
+  "Workforce",
+  "Pipeline",
+  "Funding",
+] as const;
+
+type Tab = (typeof TABS)[number];
+
 function ChartCard({
   title,
   subtitle,
   children,
-  className = "",
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
-    <div className={`surface-premium flex flex-col p-5 ${className}`}>
+    <div className="surface-premium flex min-h-[240px] flex-col p-5">
       <div className="mb-3">
         <h3 className="font-heading text-sm font-semibold">{title}</h3>
         {subtitle ? (
           <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
         ) : null}
       </div>
-      <div className="min-h-[200px] flex-1">{children}</div>
+      <div className="min-h-[180px] flex-1">{children}</div>
     </div>
   );
 }
 
-export function ExecutiveChartsGrid() {
+export function ExecutiveChartsGrid({ data }: { data: ExecutiveDashboardData }) {
+  const [tab, setTab] = useState<Tab>("Executive");
+
+  const provincePay = data.provinceDistribution
+    .filter((p) => p.historicalPayroll + p.draftPayroll > 0)
+    .map((p) => ({
+      name: p.name,
+      historical: p.historicalPayroll / 1_000_000,
+      draft: p.draftPayroll / 1_000_000,
+    }));
+
+  const cityPay = data.cityDistribution
+    .filter((c) => c.historicalPayroll + c.draftPayroll > 0)
+    .map((c) => ({
+      name: c.name,
+      historical: c.historicalPayroll / 1_000_000,
+      draft: c.draftPayroll / 1_000_000,
+    }));
+
+  const trend = data.payrollTrend.map((t) => ({
+    period: t.period.replace(" 2026", ""),
+    amount: t.amount / 1_000_000,
+    status: t.status,
+  }));
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-      <ChartCard
-        title="Payroll Trend"
-        subtitle="12-month volume · IDR billions"
-        className="xl:col-span-2"
+    <div>
+      <div
+        className="mb-3 flex flex-wrap gap-1 rounded-xl border border-border/70 bg-white p-1 shadow-[var(--elevation-sm)]"
+        role="tablist"
+        aria-label="Analytics views"
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={TREND_12M} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="volFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={NAVY} stopOpacity={0.18} />
-                <stop offset="100%" stopColor={NAVY} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: SLATE }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: SLATE }} axisLine={false} tickLine={false} width={36} />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`IDR ${v} Bn`, "Volume"]} />
-            <Area
-              type="monotone"
-              dataKey="volume"
-              stroke={NAVY}
-              strokeWidth={2}
-              fill="url(#volFill)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </ChartCard>
-
-      <ChartCard title="Payroll by Country" subtitle="Current month · IDR Bn">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={PAYROLL_BY_COUNTRY}
-            layout="vertical"
-            margin={{ top: 0, right: 8, left: 4, bottom: 0 }}
+        {TABS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+              tab === t
+                ? "bg-navy text-white"
+                : "text-muted-foreground hover:bg-slate-50 hover:text-foreground",
+            )}
+            onClick={() => setTab(t)}
           >
-            <CartesianGrid stroke={GRID} horizontal={false} />
-            <XAxis type="number" hide />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={72}
-              tick={{ fontSize: 10, fill: SLATE }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`IDR ${v} Bn`, "Volume"]} />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={14}>
-              {PAYROLL_BY_COUNTRY.map((_, i) => (
-                <Cell key={i} fill={i === 0 ? NAVY : BLUE} fillOpacity={1 - i * 0.06} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+            {t}
+          </button>
+        ))}
+      </div>
 
-      <ChartCard title="Payroll by Client" subtitle="Top contributors · IDR Bn">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={PAYROLL_BY_CLIENT} margin={{ top: 8, right: 4, left: 0, bottom: 32 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 9, fill: SLATE }}
-              axisLine={false}
-              tickLine={false}
-              interval={0}
-              angle={-25}
-              textAnchor="end"
-              height={48}
-            />
-            <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`IDR ${v} Bn`, "Volume"]} />
-            <Bar dataKey="value" fill={BLUE} radius={[4, 4, 0, 0]} maxBarSize={28} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      <div className="grid gap-4 lg:grid-cols-2" role="tabpanel">
+        {(tab === "Executive" || tab === "Payroll") && (
+          <ChartCard
+            title="Payroll Trend by Period"
+            subtitle="Existing-client totalNet · IDR millions · CLOSED vs DRAFT labeled in data"
+          >
+            {trend.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="payFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={NAVY} stopOpacity={0.2} />
+                      <stop offset="100%" stopColor={NAVY} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="period" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={36} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(v) => [formatRupiah(Number(v) * 1_000_000), "Payroll"]}
+                  />
+                  <Area type="monotone" dataKey="amount" stroke={NAVY} strokeWidth={2} fill="url(#payFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty />
+            )}
+          </ChartCard>
+        )}
 
-      <ChartCard title="By Cost Center" subtitle="IDR Bn allocation">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={PAYROLL_BY_COST_CENTER} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 9, fill: SLATE }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="value" fill={NAVY} radius={[4, 4, 0, 0]} maxBarSize={32} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        {(tab === "Executive" || tab === "Geography" || tab === "Payroll") && (
+          <ChartCard title="Payroll by Province" subtitle="Historical vs draft · IDR millions">
+            {provincePay.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={provincePay} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={36} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="historical" name="Historical CLOSED" fill={NAVY} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="draft" name="Draft" fill={BLUE} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty />
+            )}
+          </ChartCard>
+        )}
 
-      <ChartCard title="By Business Unit" subtitle="IDR Bn">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={PAYROLL_BY_BU} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 9, fill: SLATE }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="value" fill={EMERALD} radius={[4, 4, 0, 0]} maxBarSize={36} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        {(tab === "Geography" || tab === "Payroll") && (
+          <ChartCard title="Payroll by City / Regency" subtitle="Within current filter scope">
+            {cityPay.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cityPay} layout="vertical" margin={{ top: 0, right: 8, left: 8, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} horizontal={false} />
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="historical" name="Historical" fill={NAVY} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="draft" name="Draft" fill={BLUE} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty />
+            )}
+          </ChartCard>
+        )}
 
-      <ChartCard title="Funding Utilization" subtitle="Self-funded vs working capital %">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={FUNDING_UTIL} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: SLATE }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Area type="monotone" dataKey="self" stackId="1" stroke={NAVY} fill={NAVY} fillOpacity={0.85} name="Self-funded" />
-            <Area type="monotone" dataKey="wc" stackId="1" stroke={AMBER} fill={AMBER} fillOpacity={0.75} name="Working capital" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        {(tab === "Workforce" || tab === "Geography") && (
+          <ChartCard title="Employees by Province" subtitle="Active + probation on existing clients">
+            {data.workforceByProvince.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.workforceByProvince} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="count" fill={BLUE} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty />
+            )}
+          </ChartCard>
+        )}
 
-      <ChartCard title="Approval SLA" subtitle="On-time vs late %">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={APPROVAL_SLA} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="stage" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="onTime" stackId="a" fill={EMERALD} name="On time" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="late" stackId="a" fill={AMBER} name="Late" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        {(tab === "Pipeline" || tab === "Executive") && (
+          <ChartCard title="Prospect Pipeline by Geography" subtitle="Estimated payroll · OPEN only">
+            {data.pipelineByGeo.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.pipelineByGeo} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 9, fill: SLATE }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={40} />
+                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${(v / 1e9).toFixed(1)}B`} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => [formatRupiah(Number(v)), "Pipeline"]} />
+                  <Bar dataKey="amount" fill={BLUE} radius={[4, 4, 0, 0]}>
+                    {data.pipelineByGeo.map((_, i) => (
+                      <Cell key={i} fill={i === 0 ? BLUE : NAVY} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty />
+            )}
+          </ChartCard>
+        )}
 
-      <ChartCard title="Payment Completion" subtitle="Cumulative completion rate">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={PAYMENT_COMPLETION} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="day" tick={{ fontSize: 11, fill: SLATE }} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}%`, "Completed"]} />
-            <Line type="monotone" dataKey="rate" stroke={BLUE} strokeWidth={2.5} dot={{ r: 3, fill: BLUE }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        {(tab === "Funding" || tab === "Payroll") && (
+          <ChartCard title="Workflow Status by Geography Scope" subtitle="Period counts in current filter">
+            {data.workflowByStatus.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.workflowByStatus} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="status" tick={{ fontSize: 9, fill: SLATE }} axisLine={false} tickLine={false} interval={0} angle={-20} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="count" fill={NAVY} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty />
+            )}
+          </ChartCard>
+        )}
 
-      <ChartCard title="Disbursement Timeline" subtitle="Batch volume by hour window (UTC+7)">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={DISBURSEMENT_TIMELINE} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="slot" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={24} />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Bar dataKey="batches" fill={NAVY} radius={[4, 4, 0, 0]} maxBarSize={36} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        {tab === "Geography" && (
+          <ChartCard title="Client Portfolio by Geography" subtitle="Existing vs prospect counts">
+            {data.portfolioByGeo.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.portfolioByGeo} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={GRID} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: SLATE }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="existing" name="Existing" fill={NAVY} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="prospect" name="Prospect" fill={BLUE} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty />
+            )}
+          </ChartCard>
+        )}
+      </div>
     </div>
+  );
+}
+
+function Empty() {
+  return (
+    <p className="flex h-full items-center justify-center text-xs text-muted-foreground">
+      No data in current geographic scope
+    </p>
   );
 }
