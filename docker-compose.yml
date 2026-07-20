@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: proqpay
+      POSTGRES_PASSWORD: proqpay
+      POSTGRES_DB: proqpay
+    ports:
+      - "5432:5432"
+    volumes:
+      - proqpay_pg:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://proqpay:proqpay@db:5432/proqpay
+      AUTH_SECRET: change-me-in-production
+      NEXTAUTH_URL: http://localhost:3001
+      AUTH_TRUST_HOST: "true"
+    depends_on:
+      - db
+
+volumes:
+  proqpay_pg:

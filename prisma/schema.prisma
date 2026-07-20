@@ -1,0 +1,200 @@
+// ProQPay Enterprise Payroll OS — PostgreSQL schema
+// Production: set DATABASE_URL to PostgreSQL connection string.
+// Local demo uses seed TypeScript data; Prisma is ready for DB-backed mode.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  PAYROLL_ADMIN
+  FINANCE
+  HR
+  DIRECTOR
+  APPROVER
+  VIEWER
+}
+
+enum PayrollStatus {
+  DRAFT
+  WAITING
+  APPROVED
+  REJECTED
+  LOCKED
+  DISBURSED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DisbursementStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum WorkingCapitalStatus {
+  REQUESTED
+  APPROVED
+  DISBURSED
+  OUTSTANDING
+  REPAID
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  PROBATION
+  RESIGNED
+  TERMINATED
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String
+  passwordHash   String
+  role           Role     @default(VIEWER)
+  department     String?
+  avatarInitials String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  auditLogs      AuditLog[]
+  approvalSteps  ApprovalStep[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  npwp      String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Employee {
+  id           String           @id @default(cuid())
+  employeeCode String           @unique
+  name         String
+  email        String
+  phone        String
+  department   String
+  position     String
+  joinDate     DateTime
+  status       EmploymentStatus @default(ACTIVE)
+  baseSalary   Int
+  bankName     String
+  bankAccount  String
+  taxStatus    String
+  bpjsNumber   String
+  npwp         String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  payrollLines PayrollLine[]
+}
+
+model PayrollPeriod {
+  id              String              @id @default(cuid())
+  name            String
+  periodStart     DateTime
+  periodEnd       DateTime
+  payDate         DateTime
+  status          PayrollStatus       @default(DRAFT)
+  employeeCount   Int                 @default(0)
+  totalGross      Int                 @default(0)
+  totalDeductions Int                 @default(0)
+  totalNet        Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  lines           PayrollLine[]
+  approvals       ApprovalStep[]
+  disbursements   DisbursementBatch[]
+  workingCapital  WorkingCapitalRequest[]
+}
+
+model PayrollLine {
+  id              String        @id @default(cuid())
+  payrollPeriodId String
+  employeeId      String
+  employeeName    String
+  department      String
+  baseSalary      Int
+  allowances      Int           @default(0)
+  overtime        Int           @default(0)
+  bonuses         Int           @default(0)
+  deductions      Int           @default(0)
+  tax             Int           @default(0)
+  bpjs            Int           @default(0)
+  netPay          Int
+  payrollPeriod   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id])
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+
+  @@index([payrollPeriodId])
+}
+
+model ApprovalStep {
+  id              String         @id @default(cuid())
+  payrollPeriodId String
+  level           Int
+  approverName    String
+  role            Role
+  status          ApprovalStatus @default(PENDING)
+  comment         String?
+  actedAt         DateTime?
+  userId          String?
+  payrollPeriod   PayrollPeriod  @relation(fields: [payrollPeriodId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
+
+  @@index([payrollPeriodId])
+}
+
+model DisbursementBatch {
+  id              String             @id @default(cuid())
+  payrollPeriodId String
+  periodName      String
+  bankName        String
+  totalAmount     Int
+  itemCount       Int
+  status          DisbursementStatus @default(PENDING)
+  referenceNumber String
+  createdAt       DateTime           @default(now())
+  processedAt     DateTime?
+  payrollPeriod   PayrollPeriod      @relation(fields: [payrollPeriodId], references: [id])
+}
+
+model WorkingCapitalRequest {
+  id              String               @id @default(cuid())
+  payrollPeriodId String
+  periodName      String
+  requestedAmount Int
+  approvedAmount  Int                  @default(0)
+  status          WorkingCapitalStatus @default(REQUESTED)
+  requestedAt     DateTime             @default(now())
+  dueDate         DateTime
+  repaidAmount    Int                  @default(0)
+  payrollPeriod   PayrollPeriod        @relation(fields: [payrollPeriodId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  userName  String
+  userRole  Role
+  action    String
+  entity    String
+  entityId  String
+  timestamp DateTime @default(now())
+  ip        String
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([timestamp])
+  @@index([entity])
+}
