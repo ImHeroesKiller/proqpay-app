@@ -18,11 +18,15 @@ import {
   type FilterOptions,
 } from "@/components/dashboard/executive/geo-filters";
 import { ExecutiveChartsGrid } from "@/components/dashboard/executive/charts-grid";
+import { AccountReceivableWidget } from "@/components/dashboard/executive/account-receivable";
 import { formatCompactIDR, formatFullIDR } from "@/lib/format/idr";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const CYCLE_ROW_H = 44;
+const CYCLE_HEADER_H = 40;
+const CYCLE_MAX_ROWS = 5;
 
 const IndonesiaChoropleth = dynamic(
   () =>
@@ -183,29 +187,29 @@ export function ExecutiveCommandCenter({
         </div>
       </header>
 
-      {/* KPI grid — clickable */}
+      {/* KPI strip — single horizontal row on desktop */}
       <section
         aria-label="Primary payroll KPIs"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin] xl:grid xl:grid-cols-8 xl:overflow-visible"
       >
         {data.kpis.map((kpi) => (
           <Link
             key={kpi.id}
             href={kpi.href}
-            className="surface-premium group flex min-h-[112px] min-w-0 flex-col p-[18px] transition duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring"
+            className="surface-premium group flex min-h-[104px] w-[min(46vw,11.5rem)] shrink-0 flex-col p-3.5 transition duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring xl:w-auto xl:min-w-0"
             title={kpi.fullValue}
             aria-label={`${kpi.label}: ${kpi.value}. ${kpi.delta}. Open ${kpi.href}`}
           >
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <div className="flex items-start justify-between gap-1">
+              <p className="line-clamp-2 text-[10px] font-semibold uppercase leading-tight tracking-[0.08em] text-muted-foreground">
                 {kpi.label}
               </p>
-              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+              <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
             </div>
-            <p className="kpi-value mt-2 break-words text-xl font-bold text-navy sm:text-2xl">
+            <p className="kpi-value mt-2 truncate text-lg font-bold text-navy">
               {kpi.value}
             </p>
-            <p className="mt-2 line-clamp-2 text-[11px] font-medium text-muted-foreground">
+            <p className="mt-1 truncate text-[10px] font-medium text-muted-foreground">
               {kpi.delta}
             </p>
           </Link>
@@ -227,9 +231,9 @@ export function ExecutiveCommandCenter({
         />
       </section>
 
-      {/* Insights + alerts + coverage */}
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="surface-premium flex flex-col p-5 lg:col-span-1">
+      {/* Insights + alerts */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="surface-premium flex flex-col p-5">
           <h2 className="font-heading text-sm font-semibold">Executive Insights</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Rule-based operational intelligence
@@ -258,9 +262,12 @@ export function ExecutiveCommandCenter({
               </li>
             ))}
           </ul>
+          <p className="mt-3 text-[10px] text-muted-foreground">
+            Query batch · {data.meta.queryCount} · {data.meta.durationMs} ms
+          </p>
         </div>
 
-        <div className="surface-premium flex flex-col p-5 lg:col-span-1">
+        <div className="surface-premium flex flex-col p-5">
           <h2 className="font-heading text-sm font-semibold">Operational Alerts</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Generated from live rules · no synthetic disasters
@@ -295,46 +302,9 @@ export function ExecutiveCommandCenter({
             ))}
           </ul>
         </div>
-
-        <div className="surface-premium flex flex-col p-5 lg:col-span-1">
-          <h2 className="font-heading text-sm font-semibold">
-            Indonesia Operational Coverage
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Planned expansion is not active operation
-          </p>
-          <ol className="mt-3 space-y-3">
-            {data.coverage.map((y) => (
-              <li
-                key={y.year}
-                className="rounded-2xl border border-border/70 bg-slate-50/50 p-3"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-navy">
-                    Year {y.year} · {y.title}
-                  </p>
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      "text-[10px]",
-                      y.status === "Actual" && "bg-emerald-50 text-emerald-800",
-                      y.status === "Planned" && "bg-amber-50 text-amber-800",
-                    )}
-                  >
-                    {y.status === "Planned" ? "Strategic Plan" : y.status}
-                  </Badge>
-                </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  Focus: {y.focus.join(" · ")}
-                </p>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-auto pt-3 text-[10px] text-muted-foreground">
-            Query batch · {data.meta.queryCount} · {data.meta.durationMs} ms
-          </p>
-        </div>
       </section>
+
+      <AccountReceivableWidget data={data.receivables} />
 
       <section aria-label="Operational analytics">
         <div className="mb-3">
@@ -350,17 +320,37 @@ export function ExecutiveCommandCenter({
 
       <section className="surface-premium overflow-hidden">
         <div className="border-b border-border/70 px-5 py-4">
-          <h2 className="font-heading text-sm font-semibold">
-            Recent Payroll Cycles
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Scope Client hides internal · click row for period detail
-          </p>
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-heading text-sm font-semibold">
+                Recent Payroll Cycles
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Scope Client hides internal · click row for period detail
+              </p>
+            </div>
+            {data.recentCycles.length > CYCLE_MAX_ROWS ? (
+              <p className="text-[10px] text-muted-foreground">
+                Showing {CYCLE_MAX_ROWS} of {data.recentCycles.length} cycles
+              </p>
+            ) : null}
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-auto"
+          style={{
+            maxHeight:
+              CYCLE_HEADER_H +
+              Math.min(
+                Math.max(data.recentCycles.length, 1),
+                CYCLE_MAX_ROWS,
+              ) *
+                CYCLE_ROW_H,
+          }}
+        >
           <table className="w-full min-w-[880px] text-left text-xs">
-            <thead className="bg-slate-50/80 text-[10px] uppercase tracking-wider text-muted-foreground">
-              <tr>
+            <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <tr style={{ height: CYCLE_HEADER_H }}>
                 {[
                   "Period",
                   "Client",
@@ -373,7 +363,7 @@ export function ExecutiveCommandCenter({
                   "Funding",
                   "Action",
                 ].map((h) => (
-                  <th key={h} className="px-3 py-2.5 font-semibold first:pl-5 last:pr-5">
+                  <th key={h} className="px-3 font-semibold first:pl-5 last:pr-5">
                     {h}
                   </th>
                 ))}
@@ -381,8 +371,8 @@ export function ExecutiveCommandCenter({
             </thead>
             <tbody>
               {data.recentCycles.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="px-5 py-6 text-muted-foreground">
+                <tr style={{ height: CYCLE_ROW_H }}>
+                  <td colSpan={10} className="px-5 text-muted-foreground">
                     No cycles in current filter scope.
                   </td>
                 </tr>
@@ -391,20 +381,21 @@ export function ExecutiveCommandCenter({
                   <tr
                     key={row.id}
                     className="border-t border-border/60 hover:bg-slate-50/80"
+                    style={{ height: CYCLE_ROW_H }}
                   >
-                    <td className="px-3 py-3 font-medium first:pl-5">{row.period}</td>
-                    <td className="px-3 py-3">{row.client}</td>
-                    <td className="px-3 py-3">{row.project}</td>
-                    <td className="px-3 py-3">{row.province}</td>
-                    <td className="px-3 py-3">{row.city}</td>
-                    <td className="px-3 py-3 tabular-nums">{row.headcount}</td>
+                    <td className="px-3 font-medium first:pl-5">{row.period}</td>
+                    <td className="px-3">{row.client}</td>
+                    <td className="px-3">{row.project}</td>
+                    <td className="px-3">{row.province}</td>
+                    <td className="px-3">{row.city}</td>
+                    <td className="px-3 tabular-nums">{row.headcount}</td>
                     <td
-                      className="px-3 py-3 tabular-nums font-semibold"
+                      className="px-3 tabular-nums font-semibold"
                       title={formatFullIDR(row.totalNet)}
                     >
                       {row.totalNetCompact}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3">
                       <span
                         className={cn(
                           "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
@@ -414,8 +405,8 @@ export function ExecutiveCommandCenter({
                         {row.status.replaceAll("_", " ")}
                       </span>
                     </td>
-                    <td className="px-3 py-3">{row.fundingType}</td>
-                    <td className="px-3 py-3 last:pr-5">
+                    <td className="px-3">{row.fundingType}</td>
+                    <td className="px-3 last:pr-5">
                       <Link
                         href={row.href}
                         className="font-semibold text-secondary-blue hover:underline"

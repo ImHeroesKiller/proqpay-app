@@ -412,18 +412,33 @@ export function IndonesiaChoropleth({
         ) : null}
       </div>
 
-      {/* Accessible ranking table */}
+      {/* Accessible ranking table — max 5 rows visible, scroll for rest */}
       <div className="border-t border-border/70 px-5 py-4">
-        <h3 className="font-heading text-sm font-semibold">
-          Top Cities by Payroll Value
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Equivalent list for the map · click to filter
-        </p>
-        <div className="mt-3 overflow-x-auto">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h3 className="font-heading text-sm font-semibold">
+              Top Cities by Payroll Value
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Equivalent list for the map · click to filter
+            </p>
+          </div>
+          {cities.length > 5 ? (
+            <p className="text-[10px] text-muted-foreground">
+              Showing 5 of {cities.length} cities/regencies
+            </p>
+          ) : null}
+        </div>
+        <div
+          className="mt-3 overflow-auto rounded-xl border border-border/70"
+          style={{
+            maxHeight:
+              36 + Math.min(Math.max(cities.length, 1), 5) * 40,
+          }}
+        >
           <table className="w-full min-w-[640px] text-left text-xs">
-            <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              <tr>
+            <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <tr style={{ height: 36 }}>
                 {[
                   "Rank",
                   "City / Regency",
@@ -435,7 +450,7 @@ export function IndonesiaChoropleth({
                   "Projects",
                   "Status",
                 ].map((h) => (
-                  <th key={h} className="py-2 pr-3 font-semibold">
+                  <th key={h} className="px-2 font-semibold first:pl-3">
                     {h}
                   </th>
                 ))}
@@ -443,8 +458,8 @@ export function IndonesiaChoropleth({
             </thead>
             <tbody>
               {cities.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-4 text-muted-foreground">
+                <tr style={{ height: 40 }}>
+                  <td colSpan={9} className="px-3 text-muted-foreground">
                     No city-level operational payroll for this period and
                     scope. Only mapped active locations appear.
                   </td>
@@ -459,28 +474,29 @@ export function IndonesiaChoropleth({
                         "cursor-pointer border-t border-border/50 hover:bg-slate-50",
                         selectedCity === c.cityCode && "bg-secondary",
                       )}
+                      style={{ height: 40 }}
                       onClick={() =>
                         onSelectCity?.(
                           selectedCity === c.cityCode ? null : c.cityCode,
                         )
                       }
                     >
-                      <td className="py-2 pr-3 tabular-nums">{i + 1}</td>
-                      <td className="py-2 pr-3 font-medium">{c.cityName}</td>
-                      <td className="py-2 pr-3">{c.provinceName}</td>
+                      <td className="px-2 tabular-nums first:pl-3">{i + 1}</td>
+                      <td className="px-2 font-medium">{c.cityName}</td>
+                      <td className="px-2">{c.provinceName}</td>
                       <td
-                        className="py-2 pr-3 tabular-nums font-semibold"
+                        className="px-2 tabular-nums font-semibold"
                         title={formatFullIDR(c.payrollValue)}
                       >
                         {formatCompactIDR(c.payrollValue)}
                       </td>
-                      <td className="py-2 pr-3 tabular-nums">
+                      <td className="px-2 tabular-nums">
                         {(c.share * 100).toFixed(0)}%
                       </td>
-                      <td className="py-2 pr-3 tabular-nums">{c.employeeCount}</td>
-                      <td className="py-2 pr-3 tabular-nums">{c.clientCount}</td>
-                      <td className="py-2 pr-3 tabular-nums">{c.projectCount}</td>
-                      <td className="py-2">
+                      <td className="px-2 tabular-nums">{c.employeeCount}</td>
+                      <td className="px-2 tabular-nums">{c.clientCount}</td>
+                      <td className="px-2 tabular-nums">{c.projectCount}</td>
+                      <td className="px-2">
                         {c.status.replaceAll("_", " ")}
                       </td>
                     </tr>
