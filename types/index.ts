@@ -7,7 +7,11 @@ export type Role =
   | "DIRECTOR"
   | "APPROVER"
   | "AUDITOR"
-  | "VIEWER";
+  | "VIEWER"
+  | "FINANCE_MANAGER"
+  | "FINANCE_STAFF"
+  | "PAYROLL_MANAGER"
+  | "CLIENT";
 
 export type PayrollStatus =
   | "DRAFT"

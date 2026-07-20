@@ -20,7 +20,13 @@ export type AppModule =
   | "pricing"
   | "capital_partners"
   | "capital_allocations"
-  | "roadmap";
+  | "roadmap"
+  /** Phase 1A Financial Core modules */
+  | "invoices"
+  | "receivables"
+  | "client_payments"
+  | "treasury"
+  | "collection";
 
 /** Internal commercial / confidential modules. */
 export const CONFIDENTIAL_MODULES: AppModule[] = [
@@ -30,6 +36,16 @@ export const CONFIDENTIAL_MODULES: AppModule[] = [
   "capital_partners",
   "capital_allocations",
 ];
+
+const FINANCIAL_CORE: AppModule[] = [
+  "invoices",
+  "receivables",
+  "client_payments",
+  "working_capital",
+  "collection",
+];
+
+const TREASURY_CORE: AppModule[] = ["treasury", ...FINANCIAL_CORE];
 
 const ROLE_MODULES: Record<Role, AppModule[]> = {
   SUPER_ADMIN: [
@@ -52,6 +68,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "capital_partners",
     "capital_allocations",
     "roadmap",
+    ...TREASURY_CORE,
   ],
   DIRECTOR: [
     "dashboard",
@@ -72,6 +89,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "pricing",
     "capital_partners",
     "capital_allocations",
+    ...TREASURY_CORE,
   ],
   PAYROLL_ADMIN: [
     "dashboard",
@@ -87,6 +105,23 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "reports",
     "audit",
     "settings",
+    "invoices",
+  ],
+  PAYROLL_MANAGER: [
+    "dashboard",
+    "employees",
+    "projects",
+    "attendance",
+    "payroll",
+    "approval",
+    "payment_instructions",
+    "payment_confirmation",
+    "working_capital",
+    "disbursement",
+    "reports",
+    "audit",
+    "settings",
+    "invoices",
   ],
   PAYROLL_OPERATOR: [
     "dashboard",
@@ -113,6 +148,34 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "settings",
     "capital_partners",
     "capital_allocations",
+    ...TREASURY_CORE,
+  ],
+  FINANCE_MANAGER: [
+    "dashboard",
+    "payroll",
+    "approval",
+    "payment_instructions",
+    "payment_confirmation",
+    "working_capital",
+    "disbursement",
+    "reports",
+    "audit",
+    "settings",
+    "capital_partners",
+    "capital_allocations",
+    ...TREASURY_CORE,
+  ],
+  FINANCE_STAFF: [
+    "dashboard",
+    "payroll",
+    "payment_instructions",
+    "payment_confirmation",
+    "working_capital",
+    "reports",
+    "invoices",
+    "receivables",
+    "client_payments",
+    "collection",
   ],
   HR: [
     "dashboard",
@@ -140,8 +203,11 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payment_confirmation",
     "reports",
     "audit",
+    "invoices",
+    "receivables",
   ],
   VIEWER: ["dashboard", "payroll", "reports"],
+  CLIENT: ["dashboard", "invoices", "receivables", "client_payments"],
 };
 
 export function canAccessModule(role: Role, module: AppModule): boolean {
@@ -156,7 +222,8 @@ export function canViewExecutiveDashboard(role: Role): boolean {
   return (
     role === "SUPER_ADMIN" ||
     role === "DIRECTOR" ||
-    role === "FINANCE"
+    role === "FINANCE" ||
+    role === "FINANCE_MANAGER"
   );
 }
 
@@ -165,8 +232,20 @@ export function canViewWorkingCapitalLimits(role: Role): boolean {
     role === "SUPER_ADMIN" ||
     role === "DIRECTOR" ||
     role === "FINANCE" ||
-    role === "PAYROLL_ADMIN"
+    role === "FINANCE_MANAGER" ||
+    role === "FINANCE_STAFF" ||
+    role === "PAYROLL_ADMIN" ||
+    role === "PAYROLL_MANAGER"
   );
+}
+
+/** Treasury is restricted — not visible to CLIENT / VIEWER / generic operators. */
+export function canViewTreasury(role: Role): boolean {
+  return canAccessModule(role, "treasury");
+}
+
+export function canManageInvoices(role: Role): boolean {
+  return canAccessModule(role, "invoices");
 }
 
 export function canViewPricing(role: Role): boolean {

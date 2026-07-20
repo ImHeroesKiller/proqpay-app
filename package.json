@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:utils": "node scripts/check-utils.mjs",
+    "test:financial": "node scripts/test-financial.mjs",
+    "test": "pnpm test:utils && pnpm test:financial",
     "bench:dashboard": "tsx scripts/bench-dashboard.mjs",
     "bench:routes": "tsx scripts/bench-routes.mjs",
     "check": "pnpm lint && pnpm typecheck && pnpm test:utils && pnpm build",
