@@ -48,13 +48,18 @@ function LoginForm() {
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-md space-y-5">
           <div className="text-center">
-            <div className="text-2xl font-bold tracking-tight">
-              Pro<span className="text-orange">Q</span>Pay
-            </div>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logo-proqpay.png"
+              alt="ProQPay"
+              width={220}
+              height={77}
+              className="mx-auto h-12 w-auto object-contain"
+            />
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               An MSG Technology Product
             </p>
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-muted-foreground">
               Enterprise Payroll Operating System
             </p>
           </div>

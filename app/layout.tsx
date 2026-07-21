@@ -23,6 +23,14 @@ export const metadata: Metadata = {
   description:
     "ProQPay Enterprise Payroll Operating System by PT Mandiri Semesta Gemilang (MSG).",
   robots: { index: false, follow: false },
+  icons: {
+    icon: [
+      { url: "/brand/icon-proqpay.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+    shortcut: ["/brand/icon-proqpay.png"],
+  },
 };
 
 export default function RootLayout({

@@ -78,18 +78,32 @@ export function Sidebar({
             onClick={onNavigate}
             onMouseEnter={() => intentPrefetch("/dashboard")}
             onFocus={() => intentPrefetch("/dashboard")}
-            className={cn("block min-w-0", isCollapsed && "text-center")}
+            className={cn(
+              "block min-w-0",
+              isCollapsed ? "text-center" : "space-y-1",
+            )}
+            aria-label="ProQPay dashboard"
           >
             {isCollapsed ? (
-              <span className="font-heading text-sm font-bold tracking-tight text-white">
-                PQ
-              </span>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src="/brand/icon-proqpay.png"
+                alt="ProQPay"
+                width={36}
+                height={36}
+                className="mx-auto h-9 w-9 rounded-md object-contain"
+              />
             ) : (
               <>
-                <div className="font-heading text-[15px] font-bold tracking-tight text-white">
-                  ProQPay
-                </div>
-                <p className="mt-1 text-[10px] font-medium leading-snug text-white/50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brand/logo-proqpay.png"
+                  alt="ProQPay"
+                  width={160}
+                  height={56}
+                  className="h-8 w-auto max-w-[168px] object-contain object-left"
+                />
+                <p className="text-[10px] font-medium leading-snug text-white/50">
                   Enterprise Payroll Operating System
                 </p>
               </>
