@@ -1,34 +1,45 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import {
+  PAYROLL_MUTATOR_ROLES,
+  requireApiAuth,
+  tenantErrorResponse,
+} from "@/lib/auth/api";
 import { submitPayrollForApproval } from "@/lib/payroll/actions";
-import type { Role } from "@/types";
+import { prisma } from "@/lib/db";
+import { assertTenantOrThrow } from "@/lib/auth/api";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const gate = await requireApiAuth({
+    module: "payroll",
+    roles: PAYROLL_MUTATOR_ROLES,
+  });
+  if (!gate.ok) return gate.response;
+
   try {
     const body = (await req.json()) as { periodId?: string };
     if (!body.periodId) {
       return NextResponse.json({ error: "periodId required" }, { status: 400 });
     }
-    await submitPayrollForApproval(
-      {
-        userId: session.user.id,
-        role: (session.user.role as Role) ?? "VIEWER",
-        organizationId: session.user.organizationId,
-        companyId: session.user.companyId,
-      },
-      body.periodId,
-    );
+    const period = await prisma.payrollPeriod.findUnique({
+      where: { id: body.periodId },
+    });
+    if (!period) {
+      return NextResponse.json({ error: "Period not found" }, { status: 404 });
+    }
+    assertTenantOrThrow(gate.auth, period.companyId);
+    if (!period.latestCalculationId) {
+      return NextResponse.json(
+        { error: "Run payroll calculation before submit for approval" },
+        { status: 400 },
+      );
+    }
+
+    await submitPayrollForApproval(gate.auth, body.periodId);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed" },
-      { status: 400 },
-    );
+    return tenantErrorResponse(e);
   }
 }

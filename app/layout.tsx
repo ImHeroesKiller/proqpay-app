@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
   display: "swap",
 });
 
@@ -17,6 +23,14 @@ export const metadata: Metadata = {
   description:
     "ProQPay Enterprise Payroll Operating System by PT Mandiri Semesta Gemilang (MSG).",
   robots: { index: false, follow: false },
+  icons: {
+    icon: [
+      { url: "/brand/icon-proqpay.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+    shortcut: ["/brand/icon-proqpay.png"],
+  },
 };
 
 export default function RootLayout({
@@ -25,8 +39,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} min-h-screen font-sans antialiased`}>
+    <html lang="id" suppressHydrationWarning>
+      <body
+        className={`${inter.variable} ${manrope.variable} min-h-screen font-sans antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

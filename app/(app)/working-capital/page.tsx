@@ -5,10 +5,12 @@ import { KpiCard } from "@/components/shared/kpi-card";
 import { Button } from "@/components/ui/button";
 import { WorkingCapitalTable } from "@/components/working-capital/working-capital-table";
 import { getWorkingCapitalRequests } from "@/lib/data/queries";
+import { requireModule } from "@/lib/auth/session";
 import { formatRupiah } from "@/lib/utils";
 
 export default async function WorkingCapitalPage() {
-  const workingCapitalRequests = await getWorkingCapitalRequests();
+  const scope = await requireModule("working_capital");
+  const workingCapitalRequests = await getWorkingCapitalRequests(scope);
 
   const requested = workingCapitalRequests
     .filter((w) => w.status === "REQUESTED")
@@ -32,10 +34,11 @@ export default async function WorkingCapitalPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Finance"
         title="Working capital"
-        description="Optional payroll working capital only. Self-funded periods do not require a funding request. Settlement and partner allocation are internal commercial processes."
+        description="Optional payroll working capital only. Self-funded periods do not require a funding request. Settlement and partner allocation are internal commercial processes. Partner funds go to client bank — never directly to employees."
         actions={
-          <Button variant="accent" size="sm" disabled>
+          <Button variant="accent" size="sm" disabled title="Coming soon">
             New request
           </Button>
         }

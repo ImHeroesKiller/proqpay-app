@@ -12,6 +12,7 @@ export default async function DisbursementPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title="Disbursement"
         description="Disbursement monitoring — batch status tracking after client transfer and confirmation. Canonical control plane remains Payment Instruction + Payment Confirmation."
       />

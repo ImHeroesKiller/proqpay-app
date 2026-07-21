@@ -40,14 +40,25 @@ export type PaymentConfirmationListItem = {
 
 export async function listPaymentConfirmations(scope: SessionScope) {
   const where = companyWhere(scope);
+  // Select only list columns — avoid shipping full related rows (proof files, bank, etc.).
   const rows = await prisma.paymentConfirmation.findMany({
     where: where.companyId ? { companyId: where.companyId } : undefined,
-    include: {
-      company: true,
-      payrollPeriod: true,
-      paymentInstruction: true,
-      uploadedBy: true,
-      verifiedBy: true,
+    select: {
+      id: true,
+      companyId: true,
+      payrollPeriodId: true,
+      confirmationNumber: true,
+      paymentAmount: true,
+      paymentDate: true,
+      status: true,
+      referenceNumber: true,
+      company: { select: { name: true } },
+      payrollPeriod: { select: { name: true } },
+      paymentInstruction: {
+        select: { instructionNumber: true, executionModel: true },
+      },
+      uploadedBy: { select: { name: true } },
+      verifiedBy: { select: { name: true } },
     },
     orderBy: { createdAt: "desc" },
   });

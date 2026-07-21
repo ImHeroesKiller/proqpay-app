@@ -14,6 +14,7 @@ export default async function CapitalAllocationsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Finance"
         title="Capital allocations"
         description="Links working-capital requests to partners. Revenue-share details stay internal."
       />

@@ -1,9 +1,9 @@
 import { createHash } from "crypto";
 
-/** Deterministic UUID v5-style id from a stable namespace + name (for seed/demo). */
+/** Deterministic UUID from stable namespace + name (seed/baseline). */
 export function stableId(name: string): string {
   const hash = createHash("sha256")
-    .update(`proqpay:${name}`)
+    .update(`proqpay:baseline2026:${name}`)
     .digest("hex")
     .slice(0, 32);
   return [
@@ -15,9 +15,16 @@ export function stableId(name: string): string {
   ].join("-");
 }
 
+/** Baseline 2026 entity IDs (must match prisma/seed-realistic.ts). */
 export const IDS = {
   org: stableId("org:msg"),
-  company: stableId("company:demo"),
+  companies: {
+    ate: stableId("company:ate"),
+    internal: stableId("company:internal"),
+    mls: stableId("company:mls"),
+    qsg: stableId("company:qsg"),
+    ogg: stableId("company:ogg"),
+  },
   users: {
     siti: stableId("user:siti.rahayu@msg-os.com"),
     budi: stableId("user:budi.santoso@msg-os.com"),
@@ -27,9 +34,8 @@ export const IDS = {
     admin: stableId("user:admin@msg-os.com"),
   },
   periods: {
-    jun2026: stableId("period:2026-06"),
-    may2026: stableId("period:2026-05"),
-    apr2026: stableId("period:2026-04"),
-    jul2026: stableId("period:2026-07"),
+    ateJune2026: stableId("period:ate-2026-06"),
+    ateJuly2026: stableId("period:ate-2026-07"),
+    ateAugust2026: stableId("period:ate-2026-08"),
   },
 } as const;

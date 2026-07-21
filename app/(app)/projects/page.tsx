@@ -13,13 +13,14 @@ export default async function ProjectsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title="Projects"
         description="First-class project objects for event, outsourcing, security, cleaning, and site-based payroll. Employees and payroll periods can be linked to projects."
       />
       <div className="grid gap-3 md:grid-cols-2">
         {projects.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No projects yet. Seed data includes a demo project after reseed.
+            No projects yet. Create a managed payroll project for an active client.
           </p>
         ) : null}
         {projects.map((p) => (

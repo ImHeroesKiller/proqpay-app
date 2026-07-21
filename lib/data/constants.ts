@@ -1,7 +1,9 @@
 /** Static product metadata that does not live in the database. */
 
+/** Shared operator password used only by seed scripts (never display in production UI). */
 export const DEMO_PASSWORD = "ProQPay2026!";
 
+/** Operator login emails preserved across reseed. Password comes from seed/env — not shown in UI. */
 export const DEMO_ACCOUNTS = [
   { email: "siti.rahayu@msg-os.com", role: "PAYROLL_ADMIN" },
   { email: "budi.santoso@msg-os.com", role: "FINANCE" },

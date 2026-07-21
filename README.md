@@ -51,14 +51,16 @@ This is **not** an HRIS, ERP, or accounting suite. It is an **Enterprise Payroll
 | Capital allocations | `/capital-allocations` | Internal commercial |
 | Roadmap | `/roadmap` | All |
 
-## Demo login
+## Operator login
 
-| Email | Role | Password |
-|-------|------|----------|
-| siti.rahayu@msg-os.com | Payroll Admin | `ProQPay2026!` |
-| budi.santoso@msg-os.com | Finance | `ProQPay2026!` |
-| andi.wijaya@msg-os.com | Director | `ProQPay2026!` |
-| admin@msg-os.com | Super Admin | `ProQPay2026!` |
+Preserved operator accounts (password set by seed / environment — not shown in the production UI):
+
+| Email | Role |
+|-------|------|
+| siti.rahayu@msg-os.com | Payroll Admin |
+| budi.santoso@msg-os.com | Finance |
+| andi.wijaya@msg-os.com | Director |
+| admin@msg-os.com | Super Admin |
 
 ## Development
 
@@ -82,7 +84,11 @@ Prisma → **Supabase PostgreSQL** (schema `proqpay`).
 
 ```bash
 pnpm db:push
-pnpm db:seed
+# Preferred baseline dataset (dry-run first)
+pnpm seed:realistic -- --dry-run
+ALLOW_DATA_RESEED=true pnpm seed:realistic -- --execute
+# Legacy sample seed (deprecated)
+# pnpm db:seed
 ```
 
 ### Production env (Vercel)
@@ -109,7 +115,7 @@ components/          UI + layout + shared
 config/              navigation config
 lib/
   auth.ts            Auth.js
-  data/seed.ts       Indonesian demo data
+  data/               Queries, mappers, constants
   utils.ts
 prisma/schema.prisma production schema
 types/               shared domain types

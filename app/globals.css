@@ -1,28 +1,37 @@
 @import "tailwindcss";
 
 :root {
+  /* ProQPay Enterprise — Fortune 500 command center palette */
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
-  --primary: #0b1f33;
+  --primary: #0b3a6e;
   --primary-foreground: #ffffff;
-  --secondary: #e2e8f0;
-  --secondary-foreground: #0f172a;
+  --secondary: #eff6ff;
+  --secondary-foreground: #0b3a6e;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  --accent: #f28c28;
+  --accent: #10b981;
   --accent-foreground: #ffffff;
-  --destructive: #dc2626;
-  --border: #e2e8f0;
+  --destructive: #ef4444;
+  --border: #e8eef5;
   --input: #e2e8f0;
-  --ring: #0b3a6e;
+  --ring: #2563eb;
   --msg-blue: #0b3a6e;
-  --navy: #0b1f33;
-  --orange: #f28c28;
-  --sidebar: #0b1f33;
-  --sidebar-foreground: #e2e8f0;
-  --radius: 0.75rem;
+  --navy: #0b3a6e;
+  --secondary-blue: #2563eb;
+  --orange: #f59e0b;
+  --sidebar: #0a2f5a;
+  --sidebar-foreground: #e8eef5;
+  --radius: 1rem;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #2563eb;
+  --danger: #ef4444;
+  --elevation-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+  --elevation-md: 0 4px 16px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --elevation-lg: 0 12px 32px rgba(15, 23, 42, 0.07), 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .dark {
@@ -30,20 +39,27 @@
   --foreground: #f1f5f9;
   --card: #111827;
   --card-foreground: #f1f5f9;
-  --primary: #f8fafc;
-  --primary-foreground: #0b1f33;
+  --primary: #93c5fd;
+  --primary-foreground: #0b3a6e;
   --secondary: #1e293b;
   --secondary-foreground: #f1f5f9;
   --muted: #1e293b;
   --muted-foreground: #94a3b8;
-  --accent: #f28c28;
-  --accent-foreground: #ffffff;
+  --accent: #34d399;
+  --accent-foreground: #052e1c;
   --destructive: #ef4444;
   --border: #1e293b;
   --input: #1e293b;
-  --ring: #f28c28;
-  --sidebar: #060d18;
-  --sidebar-foreground: #e2e8f0;
+  --ring: #2563eb;
+  --sidebar: #071a33;
+  --sidebar-foreground: #e8eef5;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #60a5fa;
+  --danger: #f87171;
+  --elevation-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --elevation-md: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --elevation-lg: 0 12px 32px rgba(0, 0, 0, 0.3);
 }
 
 @theme inline {
@@ -65,12 +81,21 @@
   --color-ring: var(--ring);
   --color-msg-blue: var(--msg-blue);
   --color-navy: var(--navy);
+  --color-secondary-blue: var(--secondary-blue);
   --color-orange: var(--orange);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --font-sans: var(--font-inter);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --shadow-premium: var(--elevation-md);
+  --shadow-premium-lg: var(--elevation-lg);
 }
 
 @layer base {
@@ -79,8 +104,66 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
   }
   :focus-visible {
-    @apply outline-none ring-2 ring-ring/60 ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring/50 ring-offset-2 ring-offset-background;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Enterprise surface primitives */
+.panel {
+  @apply rounded-2xl border border-border/80 bg-card;
+  box-shadow: var(--elevation-sm);
+}
+
+.panel-header {
+  @apply border-b border-border/70 px-5 py-4;
+}
+
+.surface-premium {
+  @apply rounded-2xl border border-border/70 bg-card;
+  box-shadow: var(--elevation-md);
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.surface-premium:hover {
+  box-shadow: var(--elevation-lg);
+  border-color: color-mix(in srgb, var(--primary) 12%, var(--border));
+}
+
+.kpi-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* Executive map markers */
+.map-marker {
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+.map-marker:hover {
+  transform: scale(1.15);
 }

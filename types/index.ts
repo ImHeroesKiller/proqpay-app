@@ -7,7 +7,11 @@ export type Role =
   | "DIRECTOR"
   | "APPROVER"
   | "AUDITOR"
-  | "VIEWER";
+  | "VIEWER"
+  | "FINANCE_MANAGER"
+  | "FINANCE_STAFF"
+  | "PAYROLL_MANAGER"
+  | "CLIENT";
 
 export type PayrollStatus =
   | "DRAFT"
@@ -157,6 +161,10 @@ export interface PayrollPeriod {
   totalNet: number;
   createdAt: string;
   sourceBankLabel?: string;
+  latestCalculationId?: string;
+  projectedCalculationId?: string;
+  projectedAt?: string;
+  populationBuiltAt?: string;
 }
 
 export interface PayrollLine {

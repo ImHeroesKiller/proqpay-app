@@ -4,10 +4,12 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCompanySettings, getUsers } from "@/lib/data/queries";
+import { requireModule } from "@/lib/auth/session";
 
 export default async function SettingsPage() {
+  const scope = await requireModule("settings");
   const [companySettings, users] = await Promise.all([
-    getCompanySettings(),
+    getCompanySettings(scope),
     getUsers(),
   ]);
 
@@ -37,6 +39,7 @@ export default async function SettingsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Administration"
         title="Settings"
         description="Company, payroll rules, approval workflow, banks, roles, and users."
       />

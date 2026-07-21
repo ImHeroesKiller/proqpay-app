@@ -21,6 +21,8 @@ import {
   fundingModelLabel,
 } from "@/lib/domain/workflow";
 import { PayrollPeriodActions } from "@/components/payroll/payroll-actions";
+import { PayrollSummaryPanel } from "@/components/payroll-engine/summary-panel";
+import { CreatePayoutButton } from "@/components/payout/create-payout-button";
 
 export default async function PayrollDetailPage({
   params,
@@ -41,28 +43,58 @@ export default async function PayrollDetailPage({
   return (
     <div>
       <PageHeader
+        eyebrow="Payroll operations"
         title={period.name}
-        description="Indonesian payroll run: recalculate (BPJS/PPh21 TER simplified), submit approval, generate payment instruction, then client transfer + proof."
+        description="Run calculation (versioned), review validations, approve, project to PayrollLine, lock, then payment instruction."
         actions={
           <>
             <Button asChild variant="outline" size="sm">
               <Link href="/payroll">Back</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href="/payment-instructions">Instructions</Link>
+              <Link
+                href={`/payroll-engine/validations?periodId=${period.id}${
+                  period.latestCalculationId
+                    ? `&calculationId=${period.latestCalculationId}`
+                    : ""
+                }`}
+              >
+                Validations
+              </Link>
             </Button>
-            <Button asChild variant="accent" size="sm">
-              <Link href="/payment-confirmation">Confirmation</Link>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/payroll-engine/compare?periodId=${period.id}`}>
+                Compare runs
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/payroll-engine/audit?periodId=${period.id}`}>
+                Audit trail
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/payment-instructions">Instructions</Link>
             </Button>
           </>
         }
       />
 
-      <div className="mb-4">
-        <PayrollPeriodActions periodId={period.id} status={period.status} />
+      <PayrollSummaryPanel periodId={period.id} />
+
+      <div className="mb-4 space-y-2">
+        <PayrollPeriodActions
+          periodId={period.id}
+          status={period.status}
+          hasLatestCalc={Boolean(period.latestCalculationId)}
+          hasProjectedCalc={Boolean(period.projectedCalculationId)}
+        />
+        {(period.status === "LOCKED" ||
+          (period.status === "APPROVED" && period.projectedCalculationId)) && (
+          <CreatePayoutButton periodId={period.id} />
+        )}
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <StatusBadge status={period.status} />
         <Badge variant="secondary">
           {fundingModelLabel(period.fundingModel)}
@@ -75,6 +107,17 @@ export default async function PayrollDetailPage({
         </span>
       </div>
 
+      <div className="mb-5 rounded-lg border border-border bg-msg-blue/5 px-4 py-3 text-sm">
+        <p className="font-semibold text-foreground">What happens next</p>
+        <p className="mt-1 text-muted-foreground">
+          {workflow.find((s) => s.state === "current")?.label
+            ? `Current step: ${workflow.find((s) => s.state === "current")?.label}. Complete required actions for your role, then advance the period.`
+            : "Workflow complete or not started — review totals and history below."}{" "}
+          Partner capital never pays employees directly; client bank remains the
+          transfer source.
+        </p>
+      </div>
+
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -84,6 +127,9 @@ export default async function PayrollDetailPage({
             <p className="mb-4 text-sm text-muted-foreground">
               {fundingModelDescription(period.fundingModel)}
             </p>
+            <div className="mb-4 hidden sm:block">
+              <WorkflowTimeline steps={workflow} orientation="horizontal" />
+            </div>
             <WorkflowTimeline steps={workflow} />
           </CardContent>
         </Card>

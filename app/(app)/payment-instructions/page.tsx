@@ -1,72 +1,105 @@
 export const dynamic = "force-dynamic";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireModule } from "@/lib/auth/session";
-import { getPaymentInstructions } from "@/lib/data/queries";
+import { listInstructions } from "@/lib/payout/instruction-service";
 import { formatRupiah } from "@/lib/utils";
-import { fundingModelLabel } from "@/lib/domain/workflow";
-import { executionModelLabel } from "@/lib/domain/confirmation";
-import { Download } from "lucide-react";
+import { FileText } from "lucide-react";
+import Link from "next/link";
 
-export default async function PaymentInstructionsPage() {
+export default async function PaymentInstructionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ phase?: string }>;
+}) {
   const scope = await requireModule("payment_instructions");
-  const instructions = await getPaymentInstructions(scope);
+  const sp = await searchParams;
+  const instructions = await listInstructions(scope, {
+    phase: sp.phase,
+    take: 50,
+  });
 
   return (
     <div>
       <PageHeader
+        eyebrow="Payout control plane"
         title="Payment instructions"
-        description="Generated after approval for the client to transfer salaries from the client bank account (self-transfer) or after WC funds are released to the client bank. ProQPay does not pay employees directly from a funding partner. Banking integration may be SIMULATED."
+        description="Maker creates DRAFT batches from locked payroll lines; checker approves before bank file generation (I2-B). No auto-approve."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant={sp.phase === "SUBMITTED" ? "accent" : "outline"}>
+              <Link href="/payment-instructions?phase=SUBMITTED">
+                Approval queue
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/payment-instructions">All batches</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/payroll">Payroll periods</Link>
+            </Button>
+          </div>
+        }
       />
-      <div className="space-y-3">
-        {instructions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No payment instructions yet.
-          </p>
-        ) : null}
-        {instructions.map((pi) => (
-          <Card key={pi.id}>
-            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold">{pi.instructionNumber}</p>
-                  <Badge variant="secondary">
-                    {fundingModelLabel(pi.fundingModel)}
-                  </Badge>
-                  <Badge variant="outline">
-                    {executionModelLabel(pi.executionModel)}
-                  </Badge>
-                  <Badge variant="outline">{pi.integrationStatus}</Badge>
+
+      {sp.phase === "SUBMITTED" ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Checker queue — batches awaiting approval. Maker cannot approve their own batch.
+        </p>
+      ) : null}
+
+      {instructions.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No payment batches"
+          description="Create a payment batch from a locked payroll period with projected lines."
+          guidance="Open payroll → lock period → Create payment batch."
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/payroll">Go to payroll</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {instructions.map((pi) => (
+            <Card key={pi.id}>
+              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/payment-instructions/${pi.id}`}
+                      className="font-semibold text-primary hover:underline"
+                    >
+                      {pi.instructionNumber}
+                    </Link>
+                    <Badge variant="secondary">{pi.controlPhase}</Badge>
+                    <Badge variant="outline">
+                      {pi.approvalStatus}
+                    </Badge>
+                    <Badge variant="outline">{pi.executionStatus}</Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {pi.payrollPeriod?.name ?? "—"} · {pi.company?.name ?? "—"} ·{" "}
+                    {pi._count.items} items · {formatRupiah(pi.totalAmount)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Maker: {pi.maker?.name ?? "—"}
+                    {pi.checker?.name ? ` · Checker: ${pi.checker.name}` : ""}
+                  </p>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {pi.executionType.replaceAll("_", " ")} ·{" "}
-                  {pi.sourceBankLabel ?? "Client source account"} ·{" "}
-                  {pi.totalRecords} records · {formatRupiah(pi.totalAmount)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Next: client transfer → upload proof in Payment confirmation
-                </p>
-              </div>
-              <div className="flex flex-col items-start gap-2 sm:items-end">
-                <StatusBadge status={pi.executionStatus} />
-                <span className="text-xs text-muted-foreground">
-                  Approval: {pi.approvalStatus}
-                </span>
                 <Button asChild size="sm" variant="outline">
-                  <a href={`/api/payment-instructions/${pi.id}/download`}>
-                    <Download className="h-3.5 w-3.5" />
-                    Download CSV
-                  </a>
+                  <Link href={`/payment-instructions/${pi.id}`}>Open</Link>
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
