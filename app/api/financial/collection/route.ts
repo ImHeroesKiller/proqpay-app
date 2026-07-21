@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json()) as {
-    companyId: string;
+    companyId?: string;
     invoiceId?: string;
     activityType: CollectionActivityType;
     summary: string;
@@ -46,8 +46,29 @@ export async function POST(req: Request) {
   };
 
   try {
+    const companyId =
+      role === "SUPER_ADMIN"
+        ? (body.companyId ?? session.user.companyId)
+        : (session.user.companyId ?? body.companyId);
+    if (!companyId) {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
+    }
+    if (
+      role !== "SUPER_ADMIN" &&
+      session.user.companyId &&
+      body.companyId &&
+      body.companyId !== session.user.companyId
+    ) {
+      return NextResponse.json({ error: "Cross-company denied" }, { status: 403 });
+    }
+    if (!body.activityType || !body.summary) {
+      return NextResponse.json(
+        { error: "activityType and summary required" },
+        { status: 400 },
+      );
+    }
     const activity = await logCollectionActivity({
-      companyId: body.companyId,
+      companyId,
       invoiceId: body.invoiceId,
       activityType: body.activityType,
       summary: body.summary,

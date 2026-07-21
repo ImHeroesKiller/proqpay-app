@@ -127,6 +127,102 @@ export function PayrollGroupsMasterClient({
           ) : null}
         </CardContent>
       </Card>
+
+      {canManage ? (
+        <AssignEmployeeForm
+          defaultGroupId={detailId}
+          onAssigned={() => {
+            if (detailId) void loadDetail();
+          }}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function AssignEmployeeForm({
+  defaultGroupId,
+  onAssigned,
+}: {
+  defaultGroupId: string;
+  onAssigned: () => void;
+}) {
+  const [payrollGroupId, setPayrollGroupId] = useState(defaultGroupId);
+  const [employeeId, setEmployeeId] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState(
+    () => new Date().toISOString().slice(0, 10),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function assign() {
+    setBusy(true);
+    setError(null);
+    setOk(null);
+    try {
+      const res = await fetch("/api/master-data/payroll-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign",
+          payrollGroupId: payrollGroupId || defaultGroupId,
+          employeeId,
+          effectiveFrom,
+        }),
+      });
+      const data = (await res.json()) as { error?: string; assignment?: { id: string } };
+      if (!res.ok) {
+        setError(data.error || "Assign failed");
+      } else {
+        setOk(`Assigned · ${data.assignment?.id?.slice(0, 8) ?? "ok"}`);
+        setEmployeeId("");
+        onAssigned();
+      }
+    } catch {
+      setError("Network error");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <h3 className="font-semibold">Assign employee to group</h3>
+        <p className="text-xs text-muted-foreground">
+          Effective-dated membership. Overlapping active assignments for the same
+          employee are rejected by the service.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <input
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={payrollGroupId || defaultGroupId}
+            onChange={(e) => setPayrollGroupId(e.target.value)}
+            placeholder="Payroll group UUID"
+          />
+          <input
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            placeholder="Employee UUID"
+          />
+          <input
+            type="date"
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={effectiveFrom}
+            onChange={(e) => setEffectiveFrom(e.target.value)}
+          />
+        </div>
+        <Button
+          type="button"
+          disabled={busy || !employeeId || !(payrollGroupId || defaultGroupId)}
+          onClick={() => void assign()}
+        >
+          {busy ? "Assigning…" : "Assign employee"}
+        </Button>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {ok ? <p className="text-sm text-muted-foreground">{ok}</p> : null}
+      </CardContent>
+    </Card>
   );
 }

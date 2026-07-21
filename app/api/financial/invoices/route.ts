@@ -4,6 +4,7 @@ import { canManageInvoices } from "@/lib/auth/permissions";
 import type { Role } from "@/types";
 import { prisma } from "@/lib/db";
 import { createDraftInvoice } from "@/lib/financial/invoice-service";
+import { resolveFinancialTenant } from "@/lib/financial/tenant";
 import type { InvoiceItemKind } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,12 @@ export async function GET() {
   }
 
   const companyId = session.user.companyId;
+  const organizationId = session.user.organizationId;
   const invoices = await prisma.invoice.findMany({
-    where: companyId ? { companyId } : undefined,
+    where: {
+      ...(companyId ? { companyId } : {}),
+      ...(organizationId && !companyId ? { organizationId } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
     select: {
@@ -29,9 +34,11 @@ export async function GET() {
       status: true,
       grandTotal: true,
       outstandingAmount: true,
+      paidAmount: true,
       currency: true,
       dueDate: true,
       companyId: true,
+      clientId: true,
       payrollPeriodId: true,
       createdAt: true,
     },
@@ -51,14 +58,15 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json()) as {
-    organizationId: string;
-    companyId: string;
-    clientId: string;
+    action?: "create" | "fromPayrollPeriod";
+    organizationId?: string;
+    companyId?: string;
+    clientId?: string;
     projectId?: string;
     payrollPeriodId?: string;
     dueDate?: string;
     notes?: string;
-    items: {
+    items?: {
       kind?: InvoiceItemKind;
       description: string;
       quantity?: number;
@@ -67,11 +75,103 @@ export async function POST(req: Request) {
     }[];
   };
 
+  const actor = {
+    id: session.user.id,
+    name: session.user.name ?? "User",
+    role,
+    companyId: session.user.companyId,
+  };
+
   try {
+    // Draft invoice from closed/approved payroll period totals
+    if (body.action === "fromPayrollPeriod") {
+      if (!body.payrollPeriodId) {
+        return NextResponse.json(
+          { error: "payrollPeriodId required" },
+          { status: 400 },
+        );
+      }
+      const period = await prisma.payrollPeriod.findUnique({
+        where: { id: body.payrollPeriodId },
+        include: { company: true },
+      });
+      if (!period) {
+        return NextResponse.json({ error: "Period not found" }, { status: 404 });
+      }
+      if (
+        role !== "SUPER_ADMIN" &&
+        session.user.companyId &&
+        period.companyId !== session.user.companyId
+      ) {
+        return NextResponse.json({ error: "Cross-company denied" }, { status: 403 });
+      }
+
+      const net = Number(period.totalNet);
+      const bpjsEmployer = Number(period.totalBpjsEmployer);
+      const items: {
+        kind?: InvoiceItemKind;
+        description: string;
+        quantity?: number;
+        unitPrice: number;
+        tax?: number;
+      }[] = [
+        {
+          kind: "PAYROLL",
+          description: `Payroll net — ${period.name}`,
+          quantity: 1,
+          unitPrice: net,
+        },
+      ];
+      if (bpjsEmployer > 0) {
+        items.push({
+          kind: "BPJS",
+          description: `BPJS employer — ${period.name}`,
+          quantity: 1,
+          unitPrice: bpjsEmployer,
+        });
+      }
+
+      const invoice = await createDraftInvoice(
+        {
+          organizationId: period.company.organizationId,
+          companyId: period.companyId,
+          clientId: period.companyId,
+          projectId: period.projectId ?? undefined,
+          payrollPeriodId: period.id,
+          dueDate: body.dueDate
+            ? new Date(body.dueDate)
+            : period.company.paymentTermsDays
+              ? new Date(
+                  Date.now() + period.company.paymentTermsDays * 86400000,
+                )
+              : null,
+          notes: body.notes ?? `Generated from payroll period ${period.name}`,
+          items,
+        },
+        actor,
+      );
+      return NextResponse.json({ invoice }, { status: 201 });
+    }
+
+    const tenant = resolveFinancialTenant({
+      role,
+      sessionOrganizationId: session.user.organizationId,
+      sessionCompanyId: session.user.companyId,
+      bodyOrganizationId: body.organizationId,
+      bodyCompanyId: body.companyId,
+    });
+
+    if (!body.clientId || !body.items?.length) {
+      return NextResponse.json(
+        { error: "clientId and items required" },
+        { status: 400 },
+      );
+    }
+
     const invoice = await createDraftInvoice(
       {
-        organizationId: body.organizationId,
-        companyId: body.companyId,
+        organizationId: tenant.organizationId,
+        companyId: tenant.companyId,
         clientId: body.clientId,
         projectId: body.projectId,
         payrollPeriodId: body.payrollPeriodId,
@@ -79,12 +179,7 @@ export async function POST(req: Request) {
         notes: body.notes,
         items: body.items,
       },
-      {
-        id: session.user.id,
-        name: session.user.name ?? "User",
-        role,
-        companyId: session.user.companyId,
-      },
+      actor,
     );
     return NextResponse.json({ invoice }, { status: 201 });
   } catch (e) {

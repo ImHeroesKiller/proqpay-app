@@ -6,6 +6,7 @@ import {
   createClientPayment,
   verifyAndAllocatePayment,
 } from "@/lib/financial/payment-service";
+import { resolveFinancialTenant } from "@/lib/financial/tenant";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -73,12 +74,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ payment });
     }
 
-    if (!body.organizationId || !body.companyId || !body.amount || !body.paymentDate) {
+    if (!body.amount || !body.paymentDate) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+    const tenant = resolveFinancialTenant({
+      role,
+      sessionOrganizationId: session.user.organizationId,
+      sessionCompanyId: session.user.companyId,
+      bodyOrganizationId: body.organizationId,
+      bodyCompanyId: body.companyId,
+    });
     const payment = await createClientPayment({
-      organizationId: body.organizationId,
-      companyId: body.companyId,
+      organizationId: tenant.organizationId,
+      companyId: tenant.companyId,
       paymentDate: new Date(body.paymentDate),
       amount: body.amount,
       actor,

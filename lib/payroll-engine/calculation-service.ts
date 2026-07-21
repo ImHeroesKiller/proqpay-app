@@ -60,9 +60,18 @@ export async function runPayrollCalculation(input: {
   createdById?: string | null;
   budgetAmount?: number | null;
   fundingModel?: "SELF_FUNDED" | "WORKING_CAPITAL";
-}): Promise<{ calculationId: string; status: EngineRunStatus; issues: number }> {
+  /** Increment 1.5 traceability */
+  runNumber?: number;
+  runReason?: string | null;
+  taxConfigId?: string | null;
+  bpjsConfigId?: string | null;
+  formulaVersionIds?: string | null;
+  configSnapshotJson?: string | null;
+  parentCalculationId?: string | null;
+}): Promise<{ calculationId: string; status: EngineRunStatus; issues: number; runNumber: number }> {
   const nodes = await loadFormulaNodes(input.companyId);
   const funding = input.fundingModel ?? "SELF_FUNDED";
+  const runNumber = input.runNumber ?? 1;
 
   const calc = await prisma.payrollCalculation.create({
     data: {
@@ -71,6 +80,14 @@ export async function runPayrollCalculation(input: {
       status: "CALCULATING",
       createdById: input.createdById ?? null,
       employeeCount: input.employees.length,
+      runNumber,
+      runReason: input.runReason ?? null,
+      taxConfigId: input.taxConfigId ?? null,
+      bpjsConfigId: input.bpjsConfigId ?? null,
+      formulaVersionIds: input.formulaVersionIds ?? null,
+      configSnapshotJson: input.configSnapshotJson ?? null,
+      parentCalculationId: input.parentCalculationId ?? null,
+      revision: runNumber,
     },
   });
 
@@ -150,6 +167,9 @@ export async function runPayrollCalculation(input: {
     });
 
     if (issues.length) {
+      const { suggestedActionFor } = await import(
+        "@/lib/payroll-engine/validation-center"
+      );
       await prisma.payrollValidation.createMany({
         data: issues.map((iss) => ({
           calculationId: calc.id,
@@ -158,6 +178,8 @@ export async function runPayrollCalculation(input: {
           message: iss.message,
           employeeId: iss.employeeId ?? null,
           employeeName: iss.employeeName ?? null,
+          suggestedAction: suggestedActionFor(iss.code, iss.message),
+          resolutionStatus: "OPEN",
         })),
       });
     }
@@ -174,7 +196,12 @@ export async function runPayrollCalculation(input: {
           calculatedAt: new Date(),
         },
       });
-      return { calculationId: calc.id, status: "FAILED", issues: issues.length };
+      return {
+        calculationId: calc.id,
+        status: "FAILED",
+        issues: issues.length,
+        runNumber,
+      };
     }
 
     const wcReq =
@@ -192,7 +219,7 @@ export async function runPayrollCalculation(input: {
     await prisma.payrollSnapshot.create({
       data: {
         calculationId: calc.id,
-        revision: 1,
+        revision: runNumber,
         payloadJson,
         checksum,
       },
@@ -258,10 +285,23 @@ export async function runPayrollCalculation(input: {
 
     void approval;
 
+    // Immutable revision snapshot for this run (never overwrite prior runs)
+    await prisma.payrollRevision.create({
+      data: {
+        calculationId: calc.id,
+        revisionNumber: runNumber,
+        reason: input.runReason ?? `Run ${runNumber}`,
+        baseRevision: runNumber > 1 ? runNumber - 1 : null,
+        snapshotJson: payloadJson,
+        createdById: input.createdById ?? null,
+      },
+    });
+
     return {
       calculationId: calc.id,
       status: "READY_FOR_APPROVAL",
       issues: issues.length,
+      runNumber,
     };
   } catch (e) {
     const msg = e instanceof FormulaError || e instanceof Error ? e.message : "Calculation failed";
@@ -276,6 +316,8 @@ export async function runPayrollCalculation(input: {
           code: "FORMULA_ERROR",
           severity: "BLOCKER",
           message: msg,
+          suggestedAction: "Fix formula expression in Formula Management",
+          resolutionStatus: "OPEN",
         },
       });
     }

@@ -161,6 +161,10 @@ export interface PayrollPeriod {
   totalNet: number;
   createdAt: string;
   sourceBankLabel?: string;
+  latestCalculationId?: string;
+  projectedCalculationId?: string;
+  projectedAt?: string;
+  populationBuiltAt?: string;
 }
 
 export interface PayrollLine {

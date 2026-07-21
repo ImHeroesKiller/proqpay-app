@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 
+type GroupOption = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  company?: { name?: string };
+  payCycle?: { code?: string; name?: string };
+  _count?: { assignments?: number };
+};
+
 export function CreatePeriodForm() {
+  const [groups, setGroups] = useState<GroupOption[]>([]);
   const [groupId, setGroupId] = useState("");
   const [name, setName] = useState("");
   const [preview, setPreview] = useState<{
@@ -23,6 +34,23 @@ export function CreatePeriodForm() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/master-data/payroll-groups?take=100");
+        const data = (await res.json()) as {
+          items?: GroupOption[];
+          error?: string;
+        };
+        if (res.ok && data.items) {
+          setGroups(data.items.filter((g) => g.status === "ACTIVE"));
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
 
   async function onPreview() {
     setError(null);
@@ -75,7 +103,7 @@ export function CreatePeriodForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Create failed");
       setResult(
-        `Created period ${data.period.name} (${data.period.id}) · population ${data.population}`,
+        `Created period ${data.period.name} · population ${data.population} lines materialised`,
       );
       setPreview(null);
     } catch (e) {
@@ -90,18 +118,28 @@ export function CreatePeriodForm() {
       <CardContent className="space-y-3 p-4">
         <h2 className="font-semibold">Create payroll period</h2>
         <p className="text-sm text-muted-foreground">
-          Select a payroll group. Pay cycle, cutoff, approval, and payment dates
-          are calculated from the group&apos;s pay cycle. New periods cannot be
-          created without this context.
+          Select a payroll group. Dates come from the pay cycle. Employee lines
+          are created automatically from active assignments.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Payroll group ID *</span>
-            <Input
+            <span className="text-muted-foreground">Payroll group *</span>
+            <select
+              className="flex h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
-              placeholder="UUID of active payroll group"
-            />
+            >
+              <option value="">Select group…</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.code} — {g.name}
+                  {g.company?.name ? ` · ${g.company.name}` : ""}
+                  {g._count?.assignments != null
+                    ? ` (${g._count.assignments} assigned)`
+                    : ""}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="space-y-1 text-sm">
             <span className="text-muted-foreground">Name (optional)</span>
@@ -129,11 +167,11 @@ export function CreatePeriodForm() {
             Create period
           </Button>
         </div>
-        {error ? (
-          <p className="text-sm text-destructive">{error}</p>
-        ) : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {result ? (
-          <p className="text-sm text-emerald-700 dark:text-emerald-400">{result}</p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            {result}
+          </p>
         ) : null}
         {preview ? (
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
@@ -142,7 +180,8 @@ export function CreatePeriodForm() {
             </p>
             <ul className="mt-2 space-y-1 text-muted-foreground">
               <li>
-                Period: {preview.schedule.periodStart} → {preview.schedule.periodEnd}
+                Period: {preview.schedule.periodStart} →{" "}
+                {preview.schedule.periodEnd}
               </li>
               <li>Cutoff: {preview.schedule.cutoffAt}</li>
               <li>Approval due: {preview.schedule.approvalDueAt}</li>

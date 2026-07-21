@@ -115,6 +115,10 @@ export function mapPayrollPeriod(
     sourceBankLabel: sourceBank
       ? `${sourceBank.label} · ${sourceBank.bank} · ${sourceBank.maskedAccountNumber ?? maskAccount(sourceBank.account)}`
       : undefined,
+    latestCalculationId: row.latestCalculationId ?? undefined,
+    projectedCalculationId: row.projectedCalculationId ?? undefined,
+    projectedAt: iso(row.projectedAt),
+    populationBuiltAt: iso(row.populationBuiltAt),
   };
 }
 

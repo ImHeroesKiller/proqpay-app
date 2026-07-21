@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { canManageInvoices } from "@/lib/auth/permissions";
 import type { Role } from "@/types";
+import { prisma } from "@/lib/db";
 import { transitionInvoiceStatus } from "@/lib/financial/invoice-service";
 import type { InvoiceStatusCode } from "@/lib/financial/invoice-status";
+import { assertFinancialCompanyAccess } from "@/lib/financial/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,19 @@ export async function POST(
   const body = (await req.json()) as { to: InvoiceStatusCode };
 
   try {
+    const existing = await prisma.invoice.findUnique({
+      where: { id },
+      select: { companyId: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+    }
+    assertFinancialCompanyAccess({
+      role,
+      sessionCompanyId: session.user.companyId,
+      resourceCompanyId: existing.companyId,
+    });
+
     const invoice = await transitionInvoiceStatus(id, body.to, {
       id: session.user.id,
       name: session.user.name ?? "User",
@@ -32,9 +47,8 @@ export async function POST(
     });
     return NextResponse.json({ invoice });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Transition failed" },
-      { status: 400 },
-    );
+    const msg = e instanceof Error ? e.message : "Transition failed";
+    const status = msg.includes("denied") || msg.includes("scope") ? 403 : 400;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

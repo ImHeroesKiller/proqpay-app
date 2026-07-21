@@ -524,6 +524,7 @@ model Company {
   sites                   Site[]
   payCycles               PayCycle[]
   payrollGroups           PayrollGroup[]
+  attendanceImportBatches AttendanceImportBatch[]
 
   @@index([organizationId])
   @@index([lifecycleStatus])
@@ -553,6 +554,8 @@ model User {
   pricingCreated        PricingRule[]       @relation("PricingCreatedBy")
   pricingApproved       PricingRule[]       @relation("PricingApprovedBy")
   paymentInstructionsGen PaymentInstruction[] @relation("PaymentInstructionGeneratedBy")
+  paymentInstructionsMade PaymentInstruction[] @relation("PaymentInstructionMaker")
+  paymentInstructionsChecked PaymentInstruction[] @relation("PaymentInstructionChecker")
   confirmationsUploaded PaymentConfirmation[] @relation("ConfirmationUploadedBy")
   confirmationsVerified PaymentConfirmation[] @relation("ConfirmationVerifiedBy")
   notifications         AppNotification[]
@@ -653,6 +656,12 @@ model PayrollPeriod {
   cutoffAt                 DateTime?                @map("cutoff_at")
   approvalDueAt            DateTime?                @map("approval_due_at")
   paymentDueAt             DateTime?                @map("payment_due_at") @db.Date
+  /// Increment 1 — latest calculation run for this period
+  latestCalculationId      String?                  @map("latest_calculation_id") @db.Uuid
+  /// Calculation that was projected into payroll_lines after approval
+  projectedCalculationId   String?                  @map("projected_calculation_id") @db.Uuid
+  projectedAt              DateTime?                @map("projected_at")
+  populationBuiltAt        DateTime?                @map("population_built_at")
   createdAt                DateTime                 @default(now()) @map("created_at")
   updatedAt                DateTime                 @updatedAt @map("updated_at")
   company                  Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -668,6 +677,7 @@ model PayrollPeriod {
   paymentInstructions      PaymentInstruction[]
   paymentConfirmations     PaymentConfirmation[]
   invoices                 Invoice[]
+  attendanceImportBatches  AttendanceImportBatch[]
 
   @@index([companyId])
   @@index([status])
@@ -793,7 +803,9 @@ model PaymentInstruction {
   totalRecords        Int                       @default(0) @map("total_records")
   totalAmount         Decimal                   @default(0) @map("total_amount") @db.Decimal(18, 2)
   currency            String                    @default("IDR")
+  /// Control-plane approval (I2-A): PENDING=draft/submitted, APPROVED, REJECTED
   approvalStatus      ApprovalStatus            @default(PENDING) @map("approval_status")
+  /// Execution axis: DRAFT until approved → READY (bank file eligible). CANCELLED terminal for control plane.
   executionStatus     PaymentInstructionStatus  @default(DRAFT) @map("execution_status")
   generatedById       String?                   @map("generated_by") @db.Uuid
   generatedAt         DateTime?                 @map("generated_at")
@@ -801,19 +813,33 @@ model PaymentInstruction {
   executedAt          DateTime?                 @map("executed_at")
   failureReason       String?                   @map("failure_reason")
   version             Int                       @default(1)
+  /// I2-A control plane
+  makerUserId         String?                   @map("maker_user_id") @db.Uuid
+  checkerUserId       String?                   @map("checker_user_id") @db.Uuid
+  checkedAt           DateTime?                 @map("checked_at")
+  rejectionReason     String?                   @map("rejection_reason")
+  approvalComment     String?                   @map("approval_comment")
+  contentChecksum     String?                   @map("content_checksum")
+  idempotencyKey      String?                   @map("idempotency_key")
+  cancelledAt         DateTime?                 @map("cancelled_at")
+  cancelReason        String?                   @map("cancel_reason")
   createdAt           DateTime                  @default(now()) @map("created_at")
   updatedAt           DateTime                  @updatedAt @map("updated_at")
   company             Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   payrollPeriod       PayrollPeriod             @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
   sourceBankAccount   BankAccount?              @relation("InstructionSourceAccount", fields: [sourceBankAccountId], references: [id], onDelete: SetNull)
   generatedBy         User?                     @relation("PaymentInstructionGeneratedBy", fields: [generatedById], references: [id], onDelete: SetNull)
+  maker               User?                     @relation("PaymentInstructionMaker", fields: [makerUserId], references: [id], onDelete: SetNull)
+  checker             User?                     @relation("PaymentInstructionChecker", fields: [checkerUserId], references: [id], onDelete: SetNull)
   items               PaymentInstructionItem[]
   paymentConfirmations PaymentConfirmation[]
 
   @@unique([companyId, instructionNumber])
+  @@unique([companyId, idempotencyKey])
   @@index([companyId])
   @@index([payrollPeriodId])
   @@index([executionStatus])
+  @@index([approvalStatus])
   @@map("payment_instructions")
   @@schema("proqpay")
 }
@@ -1251,17 +1277,127 @@ model AttendanceRecord {
   overtimeHours Decimal       @default(0) @map("overtime_hours") @db.Decimal(6, 2)
   notes        String?
   isLocked     Boolean        @default(false) @map("is_locked")
+  /// Increment 1 — optional import provenance
+  importBatchId String?       @map("import_batch_id") @db.Uuid
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
   company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employee     Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   project      Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  importBatch  AttendanceImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   @@unique([employeeId, workDate])
   @@index([companyId])
   @@index([projectId])
   @@index([workDate])
+  @@index([importBatchId])
   @@map("attendance_records")
+  @@schema("proqpay")
+}
+
+// ─── Increment 1 — Attendance import & exception queue ───
+
+enum AttendanceImportStatus {
+  STAGED
+  PARTIAL
+  COMMITTED
+  FAILED
+
+  @@schema("proqpay")
+}
+
+enum AttendanceExceptionStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+
+  @@schema("proqpay")
+}
+
+enum AttendanceExceptionSeverity {
+  ERROR
+  WARNING
+
+  @@schema("proqpay")
+}
+
+/// One CSV (or API) intake batch for a company / optional payroll period.
+model AttendanceImportBatch {
+  id               String                 @id @default(uuid()) @db.Uuid
+  companyId        String                 @map("company_id") @db.Uuid
+  payrollPeriodId  String?                @map("payroll_period_id") @db.Uuid
+  fileName         String                 @map("file_name")
+  /// SHA-256 of normalized file content — re-import same content is idempotent
+  contentChecksum  String                 @map("content_checksum")
+  status           AttendanceImportStatus @default(STAGED)
+  totalRows        Int                    @default(0) @map("total_rows")
+  successRows      Int                    @default(0) @map("success_rows")
+  exceptionRows    Int                    @default(0) @map("exception_rows")
+  stagedRows       Int                    @default(0) @map("staged_rows")
+  createdById      String?                @map("created_by") @db.Uuid
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  committedAt      DateTime?              @map("committed_at")
+  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollPeriod    PayrollPeriod?         @relation(fields: [payrollPeriodId], references: [id], onDelete: SetNull)
+  exceptions       AttendanceImportException[]
+  attendanceRecords AttendanceRecord[]
+  stagingRows      AttendanceStagingRow[]
+
+  @@unique([companyId, contentChecksum])
+  @@index([companyId])
+  @@index([payrollPeriodId])
+  @@index([status])
+  @@map("attendance_import_batches")
+  @@schema("proqpay")
+}
+
+/// Validated-but-not-yet-committed rows (staging before commit to attendance_records).
+model AttendanceStagingRow {
+  id            String         @id @default(uuid()) @db.Uuid
+  batchId       String         @map("batch_id") @db.Uuid
+  rowNumber     Int            @map("row_number")
+  employeeId    String         @map("employee_id") @db.Uuid
+  employeeCode  String         @map("employee_code")
+  workDate      DateTime       @map("work_date") @db.Date
+  type          AttendanceType @default(PRESENT)
+  hoursWorked   Decimal        @default(8) @map("hours_worked") @db.Decimal(6, 2)
+  overtimeHours Decimal        @default(0) @map("overtime_hours") @db.Decimal(6, 2)
+  projectId     String?        @map("project_id") @db.Uuid
+  siteCode      String?        @map("site_code")
+  notes         String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  batch         AttendanceImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId])
+  @@map("attendance_staging_rows")
+  @@schema("proqpay")
+}
+
+/// Exception queue for failed / warning rows from import.
+model AttendanceImportException {
+  id              String                      @id @default(uuid()) @db.Uuid
+  batchId         String                      @map("batch_id") @db.Uuid
+  rowNumber       Int                         @map("row_number")
+  code            String
+  message         String
+  severity        AttendanceExceptionSeverity @default(ERROR)
+  status          AttendanceExceptionStatus   @default(OPEN)
+  employeeCode    String?                     @map("employee_code")
+  workDate        String?                     @map("work_date")
+  rawPayload      String                      @map("raw_payload")
+  resolvedAt      DateTime?                   @map("resolved_at")
+  resolvedById    String?                     @map("resolved_by") @db.Uuid
+  resolutionNote  String?                     @map("resolution_note")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @updatedAt @map("updated_at")
+  batch           AttendanceImportBatch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([status])
+  @@index([code])
+  @@map("attendance_import_exceptions")
   @@schema("proqpay")
 }
 
@@ -1306,11 +1442,23 @@ model TaxConfig {
   defaultTerRate Decimal @default(0.05) @map("default_ter_rate") @db.Decimal(8, 4)
   isActive      Boolean  @default(true) @map("is_active")
   effectiveFrom DateTime @map("effective_from") @db.Date
+  /// Increment 1.5 — versioning & PTKP rules
+  version       Int      @default(1)
+  /// DRAFT | ACTIVE | DEPRECATED
+  lifecycle     String   @default("ACTIVE")
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  /// JSON PTKP profile e.g. {"TK/0":54000000,"K/0":58500000}
+  ptkpJson      String?  @map("ptkp_json")
+  /// JSON tax rules / brackets
+  rulesJson     String?  @map("rules_json")
+  changeNote    String?  @map("change_note")
+  createdById   String?  @map("created_by") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([lifecycle])
   @@map("tax_configs")
   @@schema("proqpay")
 }
@@ -1331,11 +1479,18 @@ model BpjsConfig {
   maxWageJp          Decimal  @default(10547400) @map("max_wage_jp") @db.Decimal(18, 2)
   isActive           Boolean  @default(true) @map("is_active")
   effectiveFrom      DateTime @map("effective_from") @db.Date
+  /// Increment 1.5
+  version            Int      @default(1)
+  lifecycle          String   @default("ACTIVE")
+  effectiveTo        DateTime? @map("effective_to") @db.Date
+  changeNote         String?  @map("change_note")
+  createdById        String?  @map("created_by") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
   company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([lifecycle])
   @@map("bpjs_configs")
   @@schema("proqpay")
 }
@@ -1958,6 +2113,10 @@ model PayrollFormulaVersion {
   /// JSON array of component codes this formula depends on
   dependsOnJson   String   @default("[]") @map("depends_on_json")
   isActive        Boolean  @default(false) @map("is_active")
+  /// DRAFT | ACTIVE | DEPRECATED — active versions are immutable
+  lifecycle       String   @default("DRAFT")
+  effectiveFrom   DateTime? @map("effective_from") @db.Date
+  effectiveTo     DateTime? @map("effective_to") @db.Date
   changeNote      String?  @map("change_note")
   createdById     String?  @map("created_by") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
@@ -1987,6 +2146,14 @@ model PayrollCalculation {
   errorMessage    String?        @map("error_message")
   calculatedAt    DateTime?      @map("calculated_at")
   createdById     String?        @map("created_by") @db.Uuid
+  /// Increment 1.5 — traceability
+  runNumber       Int            @default(1) @map("run_number")
+  runReason       String?        @map("run_reason")
+  taxConfigId     String?        @map("tax_config_id") @db.Uuid
+  bpjsConfigId    String?        @map("bpjs_config_id") @db.Uuid
+  /// Immutable snapshot of tax/bpjs/formula versions used for this run
+  configSnapshotJson String?     @map("config_snapshot_json")
+  parentCalculationId String?    @map("parent_calculation_id") @db.Uuid
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -2000,6 +2167,7 @@ model PayrollCalculation {
   @@index([companyId])
   @@index([payrollPeriodId])
   @@index([status])
+  @@index([runNumber])
   @@map("payroll_calculations")
   @@schema("proqpay")
 }
@@ -2070,10 +2238,18 @@ model PayrollValidation {
   employeeId    String?             @map("employee_id") @db.Uuid
   employeeName  String?             @map("employee_name")
   createdAt     DateTime            @default(now()) @map("created_at")
+  /// Increment 1.5 — validation center
+  suggestedAction String?           @map("suggested_action")
+  /// OPEN | RESOLVED | IGNORED
+  resolutionStatus String           @default("OPEN") @map("resolution_status")
+  resolvedAt    DateTime?           @map("resolved_at")
+  resolvedById  String?             @map("resolved_by") @db.Uuid
+  resolutionNote String?            @map("resolution_note")
   calculation   PayrollCalculation  @relation(fields: [calculationId], references: [id], onDelete: Cascade)
 
   @@index([calculationId])
   @@index([severity])
+  @@index([resolutionStatus])
   @@map("payroll_validations")
   @@schema("proqpay")
 }

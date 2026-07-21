@@ -76,19 +76,36 @@ These exist but must not become product center of gravity:
 
 ### 2.3 Gap summary by master phase
 
-| Phase | Theme | Maturity (as of roadmap date) |
+> **Maturity update 2026-07-21 (product readiness audit)** — scores from *business process usability*, not schema/API presence alone.  
+> **Overall product readiness: ~44%** (controlled pilot). Capability wiring was ~55%; process/UX/security/ops pull the product score down.
+
+| Phase | Theme | Maturity (evidence-based) |
 |-------|--------|-------------------------------|
-| 1 | Master Data | **~85%** (I1 shipped) — Client=`Company.entityKind`, Site, PayCycle, PayrollGroup, EmployeePayrollAssignment, period binding + admin UI/API; Shift Template still deferred |
-| 2 | Contract & Billing Setup | **~25%** — ClientBillingProfile skeleton; no Service Contract / Headcount Agreement / SLA / amendment history |
-| 3 | Operational Data Processing | **~20%** — AttendanceRecord model; no import wizard, exception queue, multi-source connectors |
-| 4 | Payroll Processing | **~50%** — Engine + period/line + APIs; retro, THR, off-cycle, lock/closing incomplete |
-| 5 | Employee Payout | **~40%** — instructions, confirmation, disbursement models; bank file formats, retry, payslip ESS incomplete |
-| 6 | Client Billing | **~45%** — invoice model + API + workflow docs; tax invoice, CN/DN, delivery incomplete |
-| 7 | Collection | **~40%** — AR, allocation, collection activity APIs; aging/DSO dashboards incomplete |
-| 8 | Payroll Finance | **~45%** — treasury, WC, journal, budget models; margin/profitability/reconciliation incomplete |
-| 9 | Employee Self Service | **~5%** — roles include CLIENT/employee paths thin |
-| 10 | Executive Dashboard | **~50%** — dashboard exists with geo/filters; must rebind to true payroll→cash KPIs |
-| AI | Assistants | **~0–10%** — not productized per module |
+| 1 | Master Data | **~62%** product / **~88%** wiring — I1 CRUD exists but UUID friction, sites **0**, tax/BPJS/billing profile not operator-usable |
+| 2 | Contract & Billing Setup | **~25%** — billing profile orphan; no contracts/SLA |
+| 3 | Operational Data Processing | **~55%** — **Increment 1:** CSV import, staging, exception queue, period-bound validation (browser E2E optional) |
+| 4 | Payroll Processing | **~78%** — **I1 + I1.5:** versioned runs, tax/BPJS/formula mgmt, validation center, compare, audit trail, projection verify, summary |
+| 5 | Employee Payout | **~52%** — PI from projected lines + lock-safe; confirmation prior; bank still simulated; no retry/payslip |
+| 6 | Client Billing | **~52%** — simple invoice→issue→AR; commercial fee rules missing |
+| 7 | Collection | **~55%** — ledger+payment UI; multi-alloc thin; dashboard AR still proxy |
+| 8 | Payroll Finance | **~22%** — WC create disabled; treasury UI missing |
+| 9 | Employee Self Service | **~5%** |
+| 10 | Executive Dashboard | **~48%** — real ops KPIs; AR proxy (ADR-002) |
+| AI | Assistants | **~0–10%** |
+
+**Verdict:** `✅ PROQPAY READY FOR CONTROLLED IMPLEMENTATION` — first increment = **Operational Data → Final Payroll** (`docs/IMPLEMENTATION_SEQUENCE.md`).
+
+**Audit artifacts**
+
+- `docs/ENTERPRISE_PRODUCT_READINESS_AUDIT.md` ← primary product readiness
+- `docs/BUSINESS_PROCESS_READINESS_MATRIX.md`
+- `docs/UI_CRUD_READINESS_MATRIX.md`
+- `docs/UX_PROCESS_AUDIT.md`
+- `docs/TECHNICAL_DEBT_AND_DEAD_CODE.md`
+- `docs/IMPLEMENTATION_BACKLOG.md` · `docs/IMPLEMENTATION_SEQUENCE.md`
+- `docs/adr/ADR-001-PAYROLL-CANONICAL-SOURCE.md` · `docs/adr/ADR-002-FINANCIAL-LEDGER-SOURCE.md`
+- `docs/CAPABILITY_INTEGRATION_AUDIT.md` · `docs/CAPABILITY_TRACEABILITY_MATRIX.md`
+- Smoke: `scripts/smoke-payroll-to-cash.ts`
 
 ---
 

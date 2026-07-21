@@ -21,6 +21,8 @@ import {
   fundingModelLabel,
 } from "@/lib/domain/workflow";
 import { PayrollPeriodActions } from "@/components/payroll/payroll-actions";
+import { PayrollSummaryPanel } from "@/components/payroll-engine/summary-panel";
+import { CreatePayoutButton } from "@/components/payout/create-payout-button";
 
 export default async function PayrollDetailPage({
   params,
@@ -43,24 +45,53 @@ export default async function PayrollDetailPage({
       <PageHeader
         eyebrow="Payroll operations"
         title={period.name}
-        description="Indonesian payroll run: recalculate (BPJS/PPh21 TER simplified), submit approval, generate payment instruction, then client transfer + proof."
+        description="Run calculation (versioned), review validations, approve, project to PayrollLine, lock, then payment instruction."
         actions={
           <>
             <Button asChild variant="outline" size="sm">
               <Link href="/payroll">Back</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href="/payment-instructions">Instructions</Link>
+              <Link
+                href={`/payroll-engine/validations?periodId=${period.id}${
+                  period.latestCalculationId
+                    ? `&calculationId=${period.latestCalculationId}`
+                    : ""
+                }`}
+              >
+                Validations
+              </Link>
             </Button>
-            <Button asChild variant="accent" size="sm">
-              <Link href="/payment-confirmation">Confirmation</Link>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/payroll-engine/compare?periodId=${period.id}`}>
+                Compare runs
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/payroll-engine/audit?periodId=${period.id}`}>
+                Audit trail
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/payment-instructions">Instructions</Link>
             </Button>
           </>
         }
       />
 
-      <div className="mb-4">
-        <PayrollPeriodActions periodId={period.id} status={period.status} />
+      <PayrollSummaryPanel periodId={period.id} />
+
+      <div className="mb-4 space-y-2">
+        <PayrollPeriodActions
+          periodId={period.id}
+          status={period.status}
+          hasLatestCalc={Boolean(period.latestCalculationId)}
+          hasProjectedCalc={Boolean(period.projectedCalculationId)}
+        />
+        {(period.status === "LOCKED" ||
+          (period.status === "APPROVED" && period.projectedCalculationId)) && (
+          <CreatePayoutButton periodId={period.id} />
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

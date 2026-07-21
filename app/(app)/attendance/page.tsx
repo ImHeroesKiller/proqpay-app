@@ -5,19 +5,36 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { requireModule } from "@/lib/auth/session";
 import { listAttendance } from "@/lib/data/org";
+import { getPayrollPeriods } from "@/lib/data/queries";
 import { formatDate } from "@/lib/utils";
+import { AttendanceImportPanel } from "@/components/attendance/attendance-import-panel";
+import { canAccessModule } from "@/lib/auth/permissions";
 
 export default async function AttendancePage() {
   const scope = await requireModule("attendance");
   const rows = await listAttendance(scope);
+  const periods = await getPayrollPeriods(scope);
+  const canImport =
+    canAccessModule(scope.role, "payroll") ||
+    scope.role === "HR" ||
+    scope.role === "SUPER_ADMIN";
 
   return (
     <div>
       <PageHeader
         eyebrow="Payroll operations"
         title="Attendance"
-        description="Attendance summary for payroll calculation (present, leave, overtime). Import CSV/Excel and full adjustment workflows are staged; records below drive the payroll engine attendance factor when present."
+        description="Operational intake for payroll: import CSV, resolve exceptions, then run calculation on the payroll period. Locked periods freeze attendance in range."
       />
+
+      {canImport ? (
+        <AttendanceImportPanel
+          periods={periods
+            .filter((p) => !["CLOSED", "LOCKED", "DISBURSED"].includes(p.status))
+            .map((p) => ({ id: p.id, name: p.name, status: p.status }))}
+        />
+      ) : null}
+
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full min-w-[640px] text-sm">
@@ -38,8 +55,7 @@ export default async function AttendancePage() {
                     colSpan={6}
                     className="px-4 py-6 text-muted-foreground"
                   >
-                    No attendance records yet. Import or create attendance, or
-                    import in a later release.
+                    No attendance records yet. Import a CSV above.
                   </td>
                 </tr>
               ) : null}
@@ -54,9 +70,7 @@ export default async function AttendancePage() {
                   <td className="px-4 py-2.5">
                     <Badge variant="outline">{r.type}</Badge>
                   </td>
-                  <td className="px-4 py-2.5">
-                    {Number(r.hoursWorked)}
-                  </td>
+                  <td className="px-4 py-2.5">{Number(r.hoursWorked)}</td>
                   <td className="px-4 py-2.5">
                     {Number(r.overtimeHours)}
                   </td>

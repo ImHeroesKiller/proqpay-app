@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import type { SessionScope } from "@/lib/auth/scope";
-import { calculatePayrollLine, DEFAULT_BPJS, DEFAULT_TAX } from "@/lib/payroll/engine";
 import { randomUUID } from "crypto";
 import type { Role } from "@/types";
 
@@ -162,198 +161,41 @@ export async function actOnApprovalStep(
   );
 }
 
+/**
+ * Compatibility adapter (ADR-001): run engine calculation for the period.
+ * Does not project to lines until explicit project after approval.
+ * Requires TaxConfig + BpjsConfig (no silent defaults).
+ */
 export async function recalculatePayrollPeriod(
   scope: SessionScope,
   periodId: string,
 ) {
-  const period = await prisma.payrollPeriod.findUnique({
-    where: { id: periodId },
-    include: { lines: true },
+  const { runPeriodPayrollCalculation } = await import("@/lib/payroll/period-run");
+  const result = await runPeriodPayrollCalculation(scope, periodId, {
+    projectImmediately: false,
   });
-  if (!period) throw new Error("Period not found");
-  if (scope.role !== "SUPER_ADMIN" && scope.companyId && period.companyId !== scope.companyId) {
-    throw new Error("Cross-company denied");
-  }
-  if (["LOCKED", "CLOSED", "DISBURSED"].includes(period.status)) {
-    throw new Error("Cannot recalculate locked/closed period");
-  }
-
-  const bpjsCfg = await prisma.bpjsConfig.findFirst({
-    where: { companyId: period.companyId, isActive: true },
-    orderBy: { effectiveFrom: "desc" },
-  });
-  const taxCfg = await prisma.taxConfig.findFirst({
-    where: { companyId: period.companyId, isActive: true },
-    orderBy: { effectiveFrom: "desc" },
-  });
-
-  const bpjsRates = bpjsCfg
-    ? {
-        kesehatanEmployee: Number(bpjsCfg.kesehatanEmployee),
-        kesehatanEmployer: Number(bpjsCfg.kesehatanEmployer),
-        jhtEmployee: Number(bpjsCfg.jhtEmployee),
-        jhtEmployer: Number(bpjsCfg.jhtEmployer),
-        jkkEmployer: Number(bpjsCfg.jkkEmployer),
-        jkmEmployer: Number(bpjsCfg.jkmEmployer),
-        jpEmployee: Number(bpjsCfg.jpEmployee),
-        jpEmployer: Number(bpjsCfg.jpEmployer),
-        maxWageKesehatan: Number(bpjsCfg.maxWageKesehatan),
-        maxWageJp: Number(bpjsCfg.maxWageJp),
-      }
-    : DEFAULT_BPJS;
-
-  const taxRates = taxCfg
-    ? {
-        defaultTerRate: Number(taxCfg.defaultTerRate),
-        nonNpwpSurcharge: Number(taxCfg.nonNpwpSurcharge),
-      }
-    : DEFAULT_TAX;
-
-  let totalGross = 0;
-  let totalDeductions = 0;
-  let totalNet = 0;
-  let totalBpjsEmp = 0;
-  let totalBpjsEr = 0;
-  let totalPph = 0;
-
-  for (const line of period.lines) {
-    const emp = await prisma.employee.findUnique({ where: { id: line.employeeId } });
-    const calc = calculatePayrollLine(
-      {
-        baseSalary: Number(emp?.baseSalary ?? line.baseSalary),
-        hasNpwp: Boolean(emp?.npwp && emp.npwp.length > 5),
-        taxStatus: emp?.taxStatus ?? emp?.ptkpStatus,
-      },
-      bpjsRates,
-      taxRates,
-    );
-
-    await prisma.payrollLine.update({
-      where: { id: line.id },
-      data: {
-        baseSalary: calc.baseSalary,
-        allowances: calc.allowances,
-        overtime: calc.overtime,
-        bonuses: calc.bonuses,
-        deductions: calc.deductions,
-        tax: calc.tax,
-        bpjs: calc.bpjs,
-        netPay: calc.netPay,
-      },
-    });
-
-    totalGross += calc.gross;
-    totalDeductions += calc.deductions + calc.bpjs + calc.tax;
-    totalNet += calc.netPay;
-    totalBpjsEmp += calc.bpjs;
-    totalBpjsEr += calc.bpjsEmployer;
-    totalPph += calc.pph21;
-  }
-
-  await prisma.payrollPeriod.update({
-    where: { id: periodId },
-    data: {
-      totalGross,
-      totalDeductions,
-      totalNet,
-      totalBpjsEmployee: totalBpjsEmp,
-      totalBpjsEmployer: totalBpjsEr,
-      totalPph21: totalPph,
-      version: { increment: 1 },
-      employeeCount: period.lines.length,
-    },
-  });
-
-  await audit(scope, "RECALCULATE_PAYROLL", "PayrollPeriod", periodId, `v${period.version + 1}`, period.companyId);
+  await audit(
+    scope,
+    "RECALCULATE_PAYROLL",
+    "PayrollPeriod",
+    periodId,
+    `calc=${result.calculationId} status=${result.status}`,
+    undefined,
+  );
+  return result;
 }
 
+/**
+ * I2-A: Create DRAFT payment instruction (no auto-approve).
+ * Prefer lib/payout/instruction-service.createInstruction.
+ */
 export async function generatePaymentInstruction(
   scope: SessionScope,
   periodId: string,
 ) {
-  const period = await prisma.payrollPeriod.findUnique({
-    where: { id: periodId },
-    include: { lines: true, company: true },
-  });
-  if (!period) throw new Error("Period not found");
-  if (scope.role !== "SUPER_ADMIN" && scope.companyId && period.companyId !== scope.companyId) {
-    throw new Error("Cross-company denied");
-  }
-  if (!["APPROVED", "LOCKED", "PAYMENT_INSTRUCTION_GENERATED", "WAITING_CLIENT_TRANSFER"].includes(period.status)) {
-    throw new Error("Period must be APPROVED before generating instruction");
-  }
-
-  const bank = await prisma.bankAccount.findFirst({
-    where: { companyId: period.companyId, purpose: "CLIENT_PAYROLL_SOURCE" },
-  });
-
-  const executionModel =
-    period.fundingModel === "WORKING_CAPITAL"
-      ? "WORKING_CAPITAL"
-      : "CLIENT_SELF_TRANSFER";
-
-  const count = await prisma.paymentInstruction.count({
-    where: { payrollPeriodId: periodId },
-  });
-  const instructionNumber = `PI-${period.name.replace(/\s+/g, "").toUpperCase()}-${String(count + 1).padStart(3, "0")}`;
-
-  const id = randomUUID();
-  await prisma.$transaction(async (tx) => {
-    await tx.paymentInstruction.create({
-      data: {
-        id,
-        companyId: period.companyId,
-        payrollPeriodId: period.id,
-        instructionNumber,
-        fundingModel: period.fundingModel,
-        executionModel,
-        executionType:
-          executionModel === "WORKING_CAPITAL"
-            ? "PROQPAY_MANAGED_TRANSFER"
-            : "CLIENT_BANK_TRANSFER",
-        integrationStatus: "SIMULATED",
-        sourceBankAccountId: bank?.id ?? period.sourceBankAccountId,
-        totalRecords: period.lines.length,
-        totalAmount: period.totalNet,
-        currency: "IDR",
-        approvalStatus: "APPROVED",
-        executionStatus: "READY",
-        generatedById: scope.userId,
-        generatedAt: new Date(),
-        version: 1,
-      },
-    });
-
-    for (const line of period.lines) {
-      const emp = await prisma.employee.findUnique({ where: { id: line.employeeId } });
-      await tx.paymentInstructionItem.create({
-        data: {
-          id: randomUUID(),
-          paymentInstructionId: id,
-          payrollLineId: line.id,
-          employeeId: line.employeeId,
-          recipientName: line.employeeName,
-          bankCode: emp?.bankName ?? null,
-          maskedAccountNumber: emp?.bankAccount
-            ? `••••${emp.bankAccount.slice(-4)}`
-            : "••••",
-          amount: line.netPay,
-          status: "READY",
-        },
-      });
-    }
-
-    await tx.payrollPeriod.update({
-      where: { id: periodId },
-      data: {
-        status: "WAITING_CLIENT_TRANSFER",
-        paymentInstructionStatus: "READY",
-      },
-    });
-  });
-
-  await audit(scope, "GENERATE_PAYMENT_INSTRUCTION", "PaymentInstruction", id, instructionNumber, period.companyId);
-  return id;
+  const { createInstruction } = await import("@/lib/payout/instruction-service");
+  const result = await createInstruction(scope, { periodId });
+  return result.instruction.id;
 }
 
 export async function buildInstructionCsv(instructionId: string): Promise<string> {

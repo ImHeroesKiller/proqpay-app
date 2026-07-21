@@ -930,6 +930,22 @@ export async function createPayrollPeriodFromGroup(
     },
   });
 
+  // Increment 1 — auto materialize payroll lines from group population
+  let linesCreated = 0;
+  if (population > 0) {
+    const { materializePayrollLines } = await import("@/lib/payroll/population");
+    const mat = await materializePayrollLines(
+      {
+        userId: actor.id,
+        role: actor.role,
+        organizationId: null,
+        companyId: group.companyId,
+      },
+      period.id,
+    );
+    linesCreated = mat.employeeCount;
+  }
+
   await recordMasterDataAudit({
     userId: actor.id,
     userName: actor.name,
@@ -943,12 +959,15 @@ export async function createPayrollPeriodFromGroup(
       payrollGroupId: group.id,
       payCycleId: group.payCycleId,
       population,
+      linesCreated,
     },
   });
 
+  const refreshed = await prisma.payrollPeriod.findUnique({ where: { id: period.id } });
+
   return {
-    period,
-    population,
+    period: refreshed ?? period,
+    population: linesCreated || population,
     warnings: population === 0 ? ["Empty employee population"] : [],
   };
 }
