@@ -1,7 +1,7 @@
 /** Static product metadata that does not live in the database. */
 
 /** Shared operator password used only by seed scripts (never display in production UI). */
-export const DEMO_PASSWORD = "ProQPay2026!";
+export const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "";
 
 /** Operator login emails preserved across reseed. Password comes from seed/env — not shown in UI. */
 export const DEMO_ACCOUNTS = [
