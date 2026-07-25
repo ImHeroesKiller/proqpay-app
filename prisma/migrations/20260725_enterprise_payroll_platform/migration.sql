@@ -3,6 +3,7 @@
 -- Safe to re-run partially: uses IF NOT EXISTS
 
 CREATE SCHEMA IF NOT EXISTS proqpay;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ─── Payroll groups ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS proqpay.payroll_groups (
