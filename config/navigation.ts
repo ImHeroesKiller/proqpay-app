@@ -6,40 +6,28 @@ import {
   Wallet,
   GitBranch,
   FileText,
-  ClipboardCheck,
   Landmark,
   BarChart3,
   ShieldCheck,
   Settings,
   Building2,
-  Bot,
   Upload,
   Receipt,
-  FileSpreadsheet,
   BadgeCheck,
   Layers,
   Component,
-  BookOpen,
-  HandCoins,
-  CircleDollarSign,
   FileCheck2,
-  UserCog,
-  Plug,
 } from "lucide-react";
 import type { Role } from "@/types";
-import {
-  canAccessModule,
-  type AppModule,
-} from "@/lib/auth/permissions";
+import { canAccessModule, type AppModule } from "@/lib/auth/permissions";
 
 export type NavCategoryId =
-  | "dashboard"
+  | "overview"
+  | "workforce"
   | "payroll"
-  | "master"
-  | "automation"
-  | "finance"
-  | "reports"
-  | "settings";
+  | "payments"
+  | "operations"
+  | "admin";
 
 export type NavItem = {
   title: string;
@@ -55,218 +43,140 @@ export type NavCategory = {
 };
 
 export const navCategories: NavCategory[] = [
-  { id: "dashboard", label: "Dashboard" },
+  { id: "overview", label: "Overview" },
+  { id: "workforce", label: "Workforce" },
   { id: "payroll", label: "Payroll" },
-  { id: "master", label: "Master Data" },
-  { id: "automation", label: "Automation" },
-  { id: "finance", label: "Finance" },
-  { id: "reports", label: "Reports" },
-  { id: "settings", label: "Settings" },
+  { id: "payments", label: "Payments & Funding" },
+  { id: "operations", label: "Operations" },
+  { id: "admin", label: "Administration" },
 ];
 
 const allNav: NavItem[] = [
   {
-    title: "Payroll Command Center",
+    title: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
     module: "dashboard",
-    category: "dashboard",
-  },
-  {
-    title: "Payroll Period",
-    href: "/payroll",
-    icon: Wallet,
-    module: "payroll",
-    category: "payroll",
-  },
-  {
-    title: "Payroll Processing",
-    href: "/payroll",
-    icon: Layers,
-    module: "payroll",
-    category: "payroll",
-  },
-  {
-    title: "Validation Center",
-    href: "/validation",
-    icon: BadgeCheck,
-    module: "payroll",
-    category: "payroll",
-  },
-  {
-    title: "Approval Center",
-    href: "/approval",
-    icon: GitBranch,
-    module: "approval",
-    category: "payroll",
-  },
-  {
-    title: "Payroll Register",
-    href: "/register",
-    icon: BookOpen,
-    module: "payroll",
-    category: "payroll",
-  },
-  {
-    title: "Payslip",
-    href: "/payslips",
-    icon: FileCheck2,
-    module: "payroll",
-    category: "payroll",
-  },
-  {
-    title: "Payment Instruction",
-    href: "/payment-instructions",
-    icon: FileText,
-    module: "payment_instructions",
-    category: "payroll",
+    category: "overview",
   },
   {
     title: "Employees",
     href: "/employees",
     icon: Users,
     module: "employees",
-    category: "master",
+    category: "workforce",
+  },
+  {
+    title: "Clients & Projects",
+    href: "/projects",
+    icon: FolderKanban,
+    module: "projects",
+    category: "workforce",
   },
   {
     title: "Clients",
     href: "/clients",
     icon: Building2,
     module: "clients",
-    category: "master",
+    category: "workforce",
   },
   {
-    title: "Projects",
-    href: "/projects",
-    icon: FolderKanban,
-    module: "projects",
-    category: "master",
+    title: "Payroll Runs",
+    href: "/payroll",
+    icon: Wallet,
+    module: "payroll",
+    category: "payroll",
   },
   {
-    title: "Payroll Groups",
+    title: "Validation & Approval",
+    href: "/validation",
+    icon: BadgeCheck,
+    module: "payroll",
+    category: "payroll",
+  },
+  {
+    title: "Approval Queue",
+    href: "/approval",
+    icon: GitBranch,
+    module: "approval",
+    category: "payroll",
+  },
+  {
+    title: "Payroll Setup",
     href: "/payroll-groups",
     icon: Layers,
     module: "payroll",
-    category: "master",
+    category: "payroll",
   },
   {
     title: "Payroll Components",
     href: "/payroll-components",
     icon: Component,
     module: "payroll",
-    category: "master",
+    category: "payroll",
   },
   {
-    title: "Service Contracts",
-    href: "/clients",
-    icon: FileSpreadsheet,
-    module: "clients",
-    category: "master",
+    title: "Payslips",
+    href: "/payslips",
+    icon: FileCheck2,
+    module: "payroll",
+    category: "payroll",
   },
   {
-    title: "AI Scheme Builder",
-    href: "/scheme-builder",
-    icon: Bot,
-    module: "scheme_builder",
-    category: "automation",
+    title: "Payment Instructions",
+    href: "/payment-instructions",
+    icon: FileText,
+    module: "payment_instructions",
+    category: "payments",
   },
   {
-    title: "Bulk Import Center",
-    href: "/import",
-    icon: Upload,
-    module: "import",
-    category: "automation",
+    title: "Payment Confirmation",
+    href: "/payment-confirmation",
+    icon: BadgeCheck,
+    module: "payment_confirmation",
+    category: "payments",
   },
   {
     title: "Billing & Invoice",
     href: "/billing",
     icon: Receipt,
     module: "billing",
-    category: "finance",
-  },
-  {
-    title: "Receivables",
-    href: "/billing",
-    icon: CircleDollarSign,
-    module: "billing",
-    category: "finance",
-  },
-  {
-    title: "Collection",
-    href: "/payment-confirmation",
-    icon: HandCoins,
-    module: "payment_confirmation",
-    category: "finance",
+    category: "payments",
   },
   {
     title: "Working Capital",
     href: "/working-capital",
     icon: Landmark,
     module: "working_capital",
-    category: "finance",
+    category: "payments",
   },
   {
-    title: "Payroll Reports",
+    title: "Import Center",
+    href: "/import",
+    icon: Upload,
+    module: "import",
+    category: "operations",
+  },
+  {
+    title: "Reports",
     href: "/reports",
     icon: BarChart3,
     module: "reports",
-    category: "reports",
+    category: "operations",
   },
   {
-    title: "Payment Reports",
-    href: "/payment-instructions",
-    icon: FileText,
-    module: "payment_instructions",
-    category: "reports",
-  },
-  {
-    title: "Billing Reports",
-    href: "/billing",
-    icon: Receipt,
-    module: "billing",
-    category: "reports",
-  },
-  {
-    title: "Audit Reports",
+    title: "Audit Trail",
     href: "/audit",
     icon: ShieldCheck,
     module: "audit",
-    category: "reports",
+    category: "admin",
   },
   {
-    title: "User & Access",
-    href: "/settings",
-    icon: UserCog,
-    module: "settings",
-    category: "settings",
-  },
-  {
-    title: "Company Settings",
-    href: "/settings",
-    icon: Building2,
-    module: "settings",
-    category: "settings",
-  },
-  {
-    title: "Payroll Settings",
+    title: "Settings",
     href: "/settings",
     icon: Settings,
     module: "settings",
-    category: "settings",
-  },
-  {
-    title: "Integration",
-    href: "/settings",
-    icon: Plug,
-    module: "settings",
-    category: "settings",
-  },
-  {
-    title: "Import Templates",
-    href: "/import",
-    icon: ClipboardCheck,
-    module: "import",
-    category: "settings",
+    category: "admin",
   },
 ];
 
@@ -274,7 +184,7 @@ export function navigationForRole(role: Role): NavItem[] {
   const seen = new Set<string>();
   return allNav.filter((item) => {
     if (!canAccessModule(role, item.module)) return false;
-    const key = `${item.href}::${item.title}`;
+    const key = item.href;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -288,14 +198,14 @@ export function navigationByCategory(
   return navCategories
     .map((category) => ({
       category,
-      items: items.filter((i) => i.category === category.id),
+      items: items.filter((item) => item.category === category.id),
     }))
-    .filter((g) => g.items.length > 0);
+    .filter((group) => group.items.length > 0);
 }
 
 /** @deprecated Prefer navigationForRole */
 export const appNavigation: NavItem[] = allNav.filter(
-  (i) => i.category === "dashboard" || i.category === "payroll",
+  (item) => item.category === "overview" || item.category === "payroll",
 );
 
 export const roadmapNav: NavItem[] = [];
