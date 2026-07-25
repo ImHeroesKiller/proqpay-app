@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import {
   Menu,
   LogOut,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { ShellUser } from "@/components/layout/app-shell";
 
 function greetingPrefix() {
   const h = new Date().getHours();
@@ -22,9 +23,13 @@ function greetingPrefix() {
   return "Selamat malam";
 }
 
-export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
-  const { data } = useSession();
-  const user = data?.user;
+export function Topbar({
+  user,
+  onMenuClick,
+}: {
+  user: ShellUser;
+  onMenuClick?: () => void;
+}) {
   const greet = useMemo(() => greetingPrefix(), []);
 
   return (
@@ -42,7 +47,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           </Button>
           <div className="min-w-0">
             <h1 className="truncate font-display text-[22px] font-bold leading-tight tracking-tight text-navy sm:text-2xl">
-              {greet}, {user?.name ?? "Pengguna"} 👋
+              {greet}, {user.name} 👋
             </h1>
             <p className="mt-0.5 hidden text-[13px] text-muted-foreground sm:block">
               Kendalikan payroll perusahaan Anda dengan lebih cerdas.
@@ -92,14 +97,12 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
           <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-1.5 shadow-soft">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white">
-              {user?.avatarInitials ?? "U"}
+              {user.avatarInitials}
             </div>
             <div className="hidden leading-tight sm:block">
-              <p className="text-[13px] font-semibold text-navy">
-                {user?.name ?? "User"}
-              </p>
+              <p className="text-[13px] font-semibold text-navy">{user.name}</p>
               <p className="text-[11px] text-muted-foreground">
-                {user?.role?.replaceAll("_", " ") ?? "—"}
+                {user.role.replaceAll("_", " ")}
               </p>
             </div>
           </div>
