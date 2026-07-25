@@ -368,7 +368,7 @@ async function cleanupAll() {
 }
 
 async function seedBaseline() {
-  const passwordHash = await hash(OPERATOR_PASSWORD, 10);
+  const passwordHash = await hash(OPERATOR_PASSWORD!, 10);
 
   // Reuse existing org row by slug when present (avoids unique slug clash after ID namespace change)
   const existingOrg = await prisma.organization.findFirst({
