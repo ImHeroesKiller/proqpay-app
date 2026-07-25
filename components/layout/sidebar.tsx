@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Bot, Sparkles } from "lucide-react";
 import { navigationByCategory } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types";
@@ -21,25 +21,18 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="border-b border-white/10 px-5 py-5">
         <Link href="/dashboard" onClick={onNavigate} className="group block">
           <div className="font-display text-xl font-bold tracking-tight">
-            Pro
-            <span className="text-orange transition group-hover:text-[#ffb35c]">
-              Q
-            </span>
-            Pay
+            Pro<span className="text-orange transition group-hover:text-[#ffb35c]">Q</span>Pay
           </div>
           <p className="mt-1 text-[11px] font-medium leading-snug text-white/50">
-            Enterprise Payroll OS
+            Guided Payroll OS
           </p>
         </Link>
       </div>
 
-      <nav
-        className="flex-1 space-y-6 overflow-y-auto px-3 py-5 scrollbar-thin"
-        aria-label="Primary"
-      >
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4 scrollbar-thin" aria-label="Primary">
         {groups.map(({ category, items }) => (
           <div key={category.id}>
-            <div className="mb-2.5 px-3">
+            <div className="mb-2 px-3">
               <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
                 {category.label}
               </span>
@@ -48,14 +41,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               {items.map((item) => {
                 const active =
                   pathname === item.href ||
-                  (item.href !== "/dashboard" &&
-                    pathname.startsWith(`${item.href}/`)) ||
+                  (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)) ||
                   (item.href === "/dashboard" && pathname === "/dashboard");
-                // Prefer exact title match when multiple items share href
                 const exactActive =
                   active &&
-                  (items.filter((i) => i.href === item.href).length === 1 ||
-                    pathname === item.href);
+                  (items.filter((i) => i.href === item.href).length === 1 || pathname === item.href);
                 const Icon = item.icon;
                 return (
                   <Link
@@ -64,20 +54,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     className={cn(
                       "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all duration-200",
-                      exactActive
-                        ? "text-white"
-                        : "text-white/65 hover:bg-white/[0.06] hover:text-white",
+                      exactActive ? "text-white" : "text-white/65 hover:bg-white/[0.06] hover:text-white",
                     )}
                   >
                     {exactActive ? (
                       <motion.span
                         layoutId="nav-pill"
                         className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-900/30"
-                        transition={{
-                          type: "spring",
-                          stiffness: 380,
-                          damping: 32,
-                        }}
+                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
                       />
                     ) : null}
                     <span
@@ -100,31 +84,32 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="space-y-3 border-t border-white/10 p-4">
-        <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange/20 text-orange">
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("open-ida"))}
+          className="w-full rounded-2xl border border-blue-400/30 bg-gradient-to-br from-blue-500/20 to-indigo-500/10 p-3 text-left transition hover:border-blue-300/50 hover:bg-blue-500/20"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500 text-white shadow-lg shadow-blue-950/30">
+              <Bot className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-white/90">
-                ProQ AI Assistant
-              </p>
-              <p className="text-[10px] text-white/45">Siap membantu</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-bold text-white">IDA</p>
+                <Sparkles className="h-3 w-3 text-orange" />
+              </div>
+              <p className="text-[10px] leading-snug text-white/55">Tanya, minta template, atau jalankan proses</p>
             </div>
           </div>
-        </div>
+        </button>
 
         <div className="flex items-center gap-2.5 rounded-xl px-1 py-1">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-[11px] font-bold text-white">
             {user?.avatarInitials ?? "U"}
           </div>
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-[13px] font-semibold text-white/90">
-              {user?.name ?? "User"}
-            </p>
-            <p className="truncate text-[11px] text-white/45">
-              {user?.role?.replaceAll("_", " ") ?? "—"}
-            </p>
+            <p className="truncate text-[13px] font-semibold text-white/90">{user?.name ?? "User"}</p>
+            <p className="truncate text-[11px] text-white/45">{user?.role?.replaceAll("_", " ") ?? "—"}</p>
           </div>
         </div>
       </div>
