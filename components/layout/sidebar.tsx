@@ -19,7 +19,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside className="flex h-full w-[230px] flex-col bg-sidebar text-sidebar-foreground">
       <div className="border-b border-white/10 px-5 py-5">
-        <Link href="/dashboard" onClick={onNavigate} className="group block">
+        <Link prefetch={false} href="/dashboard" onClick={onNavigate} className="group block">
           <div className="font-display text-xl font-bold tracking-tight">
             Pro<span className="text-orange transition group-hover:text-[#ffb35c]">Q</span>Pay
           </div>
@@ -49,6 +49,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 const Icon = item.icon;
                 return (
                   <Link
+                    prefetch={false}
                     key={`${item.href}-${item.title}`}
                     href={item.href}
                     onClick={onNavigate}
