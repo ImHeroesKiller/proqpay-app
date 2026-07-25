@@ -85,7 +85,9 @@ export async function saveMasterData(form: FormData) {
       else { const row = await prisma.project.create({ data }); await audit(scope, "CREATE", "Project", row.id, `Created project ${data.code}`); }
     } else if (entity === "payrollGroup") {
       const companyId = text(form, "companyId", 80); assertCompany(scope, companyId);
-      const data = { companyId, projectId: optional(form, "projectId", 80), code: text(form, "code", 50).toUpperCase(), name: text(form, "name"), workerType: text(form, "workerType", 40) || "MONTHLY", payCycle: text(form, "payCycle", 40) || "MONTHLY", isActive: bool(form, "isActive") };
+      const cycle = await prisma.$queryRaw<Array<{ id: string }>>`SELECT id FROM proqpay.pay_cycles WHERE company_id = ${companyId} AND status = 'ACTIVE' ORDER BY created_at ASC LIMIT 1`;
+      if (!cycle[0]) throw new Error("Pay cycle aktif belum tersedia untuk client ini.");
+      const data = { companyId, payCycleId: cycle[0].id, projectId: optional(form, "projectId", 80), code: text(form, "code", 50).toUpperCase(), name: text(form, "name"), workerType: text(form, "workerType", 40) || "MONTHLY", payCycle: text(form, "payCycle", 40) || "MONTHLY", isActive: bool(form, "isActive") };
       if (!data.code || !data.name) throw new Error("Kode dan nama payroll group wajib diisi.");
       if (id) { const row = await prisma.payrollGroup.findUniqueOrThrow({ where: { id }, select: { companyId: true } }); assertCompany(scope, row.companyId); await prisma.payrollGroup.update({ where: { id }, data }); }
       else { const row = await prisma.payrollGroup.create({ data }); await audit(scope, "CREATE", "PayrollGroup", row.id, `Created payroll group ${data.code}`); }
