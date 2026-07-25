@@ -1,15 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { IdaAssistant } from "@/components/ida/ida-assistant";
 import {
   EnterpriseContextBar,
   EnterpriseContextProvider,
 } from "@/components/context/enterprise-context";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types";
+
+const IdaAssistant = dynamic(
+  () => import("@/components/ida/ida-assistant").then((mod) => mod.IdaAssistant),
+  { ssr: false },
+);
 
 export type ShellUser = {
   id: string;
