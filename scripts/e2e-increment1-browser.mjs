@@ -3,13 +3,17 @@
  * Falls back to documenting skip when playwright not installed or server down.
  *
  * Run: node scripts/e2e-increment1-browser.mjs
- * Requires: pnpm dev on :3001 and DEMO credentials.
+ * Requires: pnpm dev on :3001 plus E2E_EMAIL and E2E_PASSWORD.
  */
 import { spawn } from "node:child_process";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:3001";
 const EMAIL = process.env.E2E_EMAIL || "siti.rahayu@msg-os.com";
-const PASSWORD = process.env.E2E_PASSWORD || "ProQPay2026!";
+const PASSWORD = process.env.E2E_PASSWORD;
+
+if (!PASSWORD) {
+  throw new Error("E2E_PASSWORD wajib diisi.");
+}
 
 async function tryPlaywright() {
   let chromium;
