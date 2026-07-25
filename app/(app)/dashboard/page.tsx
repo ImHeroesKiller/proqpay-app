@@ -6,10 +6,8 @@ import { AttentionCenter } from "@/components/dashboard/attention-center";
 import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { ChartsLazy } from "@/components/dashboard/charts-lazy";
-import {
-  PayrollPipeline,
-  buildPipeline,
-} from "@/components/dashboard/payroll-pipeline";
+import { PayrollPipeline } from "@/components/dashboard/payroll-pipeline";
+import { buildPipeline } from "@/lib/domain/payroll-pipeline";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
