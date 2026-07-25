@@ -449,6 +449,7 @@ model Company {
   bpjsConfigs             BpjsConfig[]
   loginHistories          LoginHistory[]
   payrollGroups           PayrollGroup[]
+  employeePayrollAssignments EmployeePayrollAssignment[]
   importBatches           ImportBatch[]
   schemeConversations     PayrollSchemeConversation[]
   invoices                Invoice[]
@@ -525,7 +526,6 @@ model Employee {
   contractType    String?          @map("contract_type")
   contractEnd     DateTime?        @map("contract_end") @db.Date
   terminateDate   DateTime?        @map("terminate_date") @db.Date
-  payrollGroupId  String?          @map("payroll_group_id") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -533,7 +533,8 @@ model Employee {
   departmentRef   Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   positionRef     Position?        @relation(fields: [positionId], references: [id], onDelete: SetNull)
   costCenter      CostCenter?      @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
-  payrollGroup    PayrollGroup?    @relation(fields: [payrollGroupId], references: [id], onDelete: SetNull)
+  /// Payroll group is historical via assignments — not a column on employees
+  payrollAssignments EmployeePayrollAssignment[]
   payrollLines    PayrollLine[]
   paymentItems    PaymentInstructionItem[]
   projectAssignments ProjectAssignment[]
@@ -1140,6 +1141,7 @@ model Project {
   payrollPeriods PayrollPeriod[]
   attendanceRecords AttendanceRecord[]
   payrollGroups PayrollGroup[]
+  employeePayrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1321,12 +1323,40 @@ model PayrollGroup {
   updatedAt  DateTime  @updatedAt @map("updated_at")
   company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  employees  Employee[]
+  employeeAssignments EmployeePayrollAssignment[]
   periods    PayrollPeriod[]
 
   @@unique([companyId, code])
   @@index([companyId])
   @@map("payroll_groups")
+  @@schema("proqpay")
+}
+
+/// Historical payroll-group membership. Source of truth for employee payroll group.
+model EmployeePayrollAssignment {
+  id             String    @id @default(uuid()) @db.Uuid
+  employeeId     String    @map("employee_id") @db.Uuid
+  payrollGroupId String?   @map("payroll_group_id") @db.Uuid
+  companyId      String?   @map("company_id") @db.Uuid
+  projectId      String?   @map("project_id") @db.Uuid
+  effectiveFrom  DateTime  @map("effective_from") @db.Date
+  effectiveTo    DateTime? @map("effective_to") @db.Date
+  isActive       Boolean   @default(true) @map("is_active")
+  status         String?   @default("ACTIVE")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payrollGroup   PayrollGroup? @relation(fields: [payrollGroupId], references: [id], onDelete: SetNull)
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  company        Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@index([payrollGroupId])
+  @@index([companyId])
+  @@index([projectId])
+  @@index([effectiveFrom])
+  @@map("employee_payroll_assignments")
   @@schema("proqpay")
 }
 

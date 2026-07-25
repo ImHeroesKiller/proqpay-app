@@ -25,6 +25,11 @@ import {
 } from "@/lib/auth/permissions";
 import type { SessionScope } from "@/lib/auth/scope";
 import { companyWhere } from "@/lib/auth/scope";
+import {
+  formatPayrollGroupLabel,
+  getActivePayrollAssignment,
+  prismaActiveAssignmentArgs,
+} from "@/lib/employees/payroll-assignment";
 
 export async function getUsers() {
   const rows = await prisma.user.findMany({ orderBy: { name: "asc" } });
@@ -39,6 +44,7 @@ export async function getUserByEmail(email: string) {
 
 export async function getEmployees(scope?: SessionScope) {
   const where = scope ? companyWhere(scope) : {};
+  const assignmentArgs = prismaActiveAssignmentArgs();
   const rows = await prisma.employee.findMany({
     where,
     orderBy: { employeeCode: "asc" },
@@ -49,24 +55,26 @@ export async function getEmployees(scope?: SessionScope) {
         take: 1,
         include: { project: { select: { name: true, code: true } } },
       },
-      payrollGroup: { select: { name: true, code: true } },
+      payrollAssignments: assignmentArgs,
     },
   });
   return rows.map((row) => {
     const base = mapEmployee(row);
+    const activePg = getActivePayrollAssignment(row.payrollAssignments);
     const issues: string[] = [];
     if (!row.bankAccount || row.bankAccount === "-") issues.push("Bank");
     if (!row.npwp || row.npwp === "-") issues.push("NPWP");
     if (!row.bpjsNumber || row.bpjsNumber === "-") issues.push("BPJS");
+    if (!activePg?.payrollGroup) issues.push("Payroll group");
     return {
       ...base,
       clientName: row.company?.name,
       projectName: row.projectAssignments[0]
         ? `${row.projectAssignments[0].project.code} · ${row.projectAssignments[0].project.name}`
-        : undefined,
-      payrollGroupName: row.payrollGroup
-        ? `${row.payrollGroup.code} · ${row.payrollGroup.name}`
-        : undefined,
+        : activePg?.project
+          ? `${activePg.project.code} · ${activePg.project.name}`
+          : undefined,
+      payrollGroupName: formatPayrollGroupLabel(activePg),
       bankMasked: row.bankAccount
         ? `****${row.bankAccount.slice(-4)}`
         : "—",
@@ -76,12 +84,40 @@ export async function getEmployees(scope?: SessionScope) {
 }
 
 export async function getEmployeeById(id: string, scope?: SessionScope) {
-  const row = await prisma.employee.findUnique({ where: { id } });
+  const row = await prisma.employee.findUnique({
+    where: { id },
+    include: {
+      company: { select: { name: true } },
+      payrollAssignments: {
+        orderBy: { effectiveFrom: "desc" },
+        take: 20,
+        include: {
+          payrollGroup: { select: { id: true, code: true, name: true } },
+          project: { select: { id: true, code: true, name: true } },
+        },
+      },
+      projectAssignments: {
+        where: { isActive: true },
+        take: 5,
+        include: { project: { select: { name: true, code: true } } },
+      },
+    },
+  });
   if (!row) return null;
   if (scope && companyWhere(scope).companyId && row.companyId !== companyWhere(scope).companyId) {
     return null;
   }
-  return mapEmployee(row);
+  const base = mapEmployee(row);
+  const activePg = getActivePayrollAssignment(row.payrollAssignments);
+  return {
+    ...base,
+    clientName: row.company?.name,
+    projectName: row.projectAssignments[0]
+      ? `${row.projectAssignments[0].project.code} · ${row.projectAssignments[0].project.name}`
+      : undefined,
+    payrollGroupName: formatPayrollGroupLabel(activePg),
+    payrollGroupId: activePg?.payrollGroupId ?? activePg?.payrollGroup?.id ?? null,
+  };
 }
 
 export async function getPayrollPeriods(scope?: SessionScope) {

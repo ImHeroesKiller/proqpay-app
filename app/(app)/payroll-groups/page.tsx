@@ -16,7 +16,7 @@ export default async function PayrollGroupsPage() {
     isActive: boolean;
     company: { name: string };
     project: { name: string } | null;
-    _count: { employees: number };
+    _count: { employeeAssignments: number };
   }[] = [];
   try {
     groups = await prisma.payrollGroup.findMany({
@@ -24,7 +24,13 @@ export default async function PayrollGroupsPage() {
       include: {
         company: { select: { name: true } },
         project: { select: { name: true } },
-        _count: { select: { employees: true } },
+        _count: {
+          select: {
+            employeeAssignments: {
+              where: { isActive: true },
+            },
+          },
+        },
       },
     });
   } catch {
@@ -63,7 +69,7 @@ export default async function PayrollGroupsPage() {
                   <td className="py-2">{g.company.name}</td>
                   <td className="py-2">{g.project?.name ?? "—"}</td>
                   <td className="py-2">{g.workerType}</td>
-                  <td className="py-2">{g._count.employees}</td>
+                  <td className="py-2">{g._count.employeeAssignments}</td>
                 </tr>
               ))}
             </tbody>
