@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { IdaAssistant } from "@/components/ida/ida-assistant";
 import {
   EnterpriseContextBar,
   EnterpriseContextProvider,
@@ -55,13 +56,14 @@ export function AppShell({
           </div>
         ) : null}
 
-        <div className={cn("flex min-h-screen flex-1 flex-col lg:pl-[230px]")}>
+        <div className={cn("flex min-h-screen flex-1 flex-col lg:pl-[230px]")}> 
           <Topbar onMenuClick={() => setMobileOpen(true)} />
           <EnterpriseContextBar />
           <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-5 sm:px-6 lg:px-8">
             {children}
           </main>
         </div>
+        <IdaAssistant />
       </div>
     </EnterpriseContextProvider>
   );
