@@ -74,7 +74,10 @@ const ATE_JULY_NET = 331_000_000;
 const ATE_HISTORICAL_NET = ATE_JUNE_NET + ATE_JULY_NET; // 738_000_000
 const PIPELINE_TOTAL = 4_200_000_000;
 
-const OPERATOR_PASSWORD = process.env.OPERATOR_SEED_PASSWORD ?? "ProQPay2026!";
+const OPERATOR_PASSWORD = process.env.OPERATOR_SEED_PASSWORD;
+if (!OPERATOR_PASSWORD || OPERATOR_PASSWORD.length < 16) {
+  throw new Error("OPERATOR_SEED_PASSWORD wajib diisi dan minimal 16 karakter.");
+}
 
 const PRESERVED_USERS: {
   email: string;
