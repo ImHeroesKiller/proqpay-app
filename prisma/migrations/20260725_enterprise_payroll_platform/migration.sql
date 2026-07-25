@@ -4,6 +4,40 @@
 
 CREATE SCHEMA IF NOT EXISTS proqpay;
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- The production database predates this application layer. Bring existing tables
+-- forward additively before seed/data statements run.
+DO $ BEGIN
+  ALTER TABLE proqpay.payroll_groups ADD COLUMN IF NOT EXISTS worker_type TEXT NOT NULL DEFAULT 'MONTHLY';
+  ALTER TABLE proqpay.payroll_groups ADD COLUMN IF NOT EXISTS pay_cycle TEXT NOT NULL DEFAULT 'MONTHLY';
+  ALTER TABLE proqpay.payroll_groups ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
+EXCEPTION WHEN undefined_table THEN NULL;
+END $;
+DO $ BEGIN
+  ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS description TEXT;
+  ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS columns_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+  ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS entity_type TEXT;
+  ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS column_schema JSONB NOT NULL DEFAULT '[]'::jsonb;
+  ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS validation_schema JSONB NOT NULL DEFAULT '{}'::jsonb;
+  ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS sample_rows JSONB NOT NULL DEFAULT '[]'::jsonb;
+  UPDATE proqpay.import_templates SET entity_type = COALESCE(entity_type, code);
+  ALTER TABLE proqpay.import_templates ALTER COLUMN entity_type SET DEFAULT 'GENERIC';
+EXCEPTION WHEN undefined_table THEN NULL;
+END $;
+DO $ BEGIN
+  ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS template_code TEXT;
+  ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS template_version TEXT NOT NULL DEFAULT '1.0';
+  ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS error_rows INT NOT NULL DEFAULT 0;
+  ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS committed_rows INT NOT NULL DEFAULT 0;
+  ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS uploaded_by UUID;
+  ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS committed_by UUID;
+  ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS error_summary TEXT;
+EXCEPTION WHEN undefined_table THEN NULL;
+END $;
+DO $ BEGIN
+  ALTER TABLE proqpay.invoices ADD COLUMN IF NOT EXISTS management_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+EXCEPTION WHEN undefined_table THEN NULL;
+END $;
+
 
 -- ─── Payroll groups ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS proqpay.payroll_groups (
@@ -262,28 +296,28 @@ CREATE TABLE IF NOT EXISTS proqpay.invoice_items (
 -- Seed import templates (idempotent)
 INSERT INTO proqpay.import_templates (code, name, description, version, columns_json)
 VALUES
-  ('EMPLOYEE_MASTER', 'Employee Master', 'Master data karyawan', '1.0',
+  ('EMPLOYEE_MASTER', 'Employee Master', 'Master data karyawan', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"name","label":"Nama","required":true},{"key":"email","label":"Email","required":true},{"key":"phone","label":"Telepon","required":false},{"key":"department","label":"Departemen","required":true},{"key":"position","label":"Jabatan","required":true},{"key":"join_date","label":"Tanggal Masuk","required":true},{"key":"base_salary","label":"Gaji Pokok","required":true},{"key":"bank_name","label":"Bank","required":true},{"key":"bank_account","label":"No Rekening","required":true},{"key":"tax_status","label":"Status Pajak","required":true},{"key":"bpjs_number","label":"No BPJS","required":false},{"key":"npwp","label":"NPWP","required":false}]'::jsonb),
-  ('EMPLOYEE_PERSONAL', 'Employee Personal Profile', 'Profil personal', '1.0',
+  ('EMPLOYEE_PERSONAL', 'Employee Personal Profile', 'Profil personal', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"identity_number","label":"NIK","required":true},{"key":"birth_date","label":"Tanggal Lahir","required":false},{"key":"address","label":"Alamat","required":false}]'::jsonb),
-  ('EMPLOYEE_CONTRACT', 'Employee Contract', 'Kontrak kerja', '1.0',
+  ('EMPLOYEE_CONTRACT', 'Employee Contract', 'Kontrak kerja', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"contract_type","label":"Jenis Kontrak","required":true},{"key":"start_date","label":"Mulai","required":true},{"key":"end_date","label":"Selesai","required":false}]'::jsonb),
-  ('PROJECT_ASSIGNMENT', 'Project Assignment', 'Penempatan project', '1.0',
+  ('PROJECT_ASSIGNMENT', 'Project Assignment', 'Penempatan project', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"project_code","label":"Kode Project","required":true},{"key":"start_date","label":"Mulai","required":true},{"key":"end_date","label":"Selesai","required":false},{"key":"role_label","label":"Peran","required":false}]'::jsonb),
-  ('COMPENSATION', 'Compensation', 'Riwayat kompensasi', '1.0',
+  ('COMPENSATION', 'Compensation', 'Riwayat kompensasi', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"base_salary","label":"Gaji Pokok","required":true},{"key":"effective_date","label":"Efektif","required":true}]'::jsonb),
-  ('BANK_ACCOUNT', 'Bank Account', 'Rekening bank', '1.0',
+  ('BANK_ACCOUNT', 'Bank Account', 'Rekening bank', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"bank_name","label":"Bank","required":true},{"key":"bank_account","label":"No Rekening","required":true}]'::jsonb),
-  ('TAX_PROFILE', 'Tax Profile', 'Profil pajak', '1.0',
+  ('TAX_PROFILE', 'Tax Profile', 'Profil pajak', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"ptkp_status","label":"PTKP","required":true},{"key":"npwp","label":"NPWP","required":false},{"key":"tax_method","label":"Metode Pajak","required":true}]'::jsonb),
-  ('BPJS_ENROLLMENT', 'BPJS Enrollment', 'Kepesertaan BPJS', '1.0',
+  ('BPJS_ENROLLMENT', 'BPJS Enrollment', 'Kepesertaan BPJS', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"bpjs_kesehatan","label":"BPJS Kesehatan","required":false},{"key":"bpjs_tk","label":"BPJS TK","required":false}]'::jsonb),
-  ('ATTENDANCE_SUMMARY', 'Attendance Summary', 'Ringkasan kehadiran', '1.0',
+  ('ATTENDANCE_SUMMARY', 'Attendance Summary', 'Ringkasan kehadiran', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"period_start","label":"Periode Mulai","required":true},{"key":"period_end","label":"Periode Selesai","required":true},{"key":"present_days","label":"Hari Hadir","required":true},{"key":"absent_days","label":"Hari Alpha","required":false},{"key":"overtime_hours","label":"Jam Lembur","required":false}]'::jsonb),
-  ('PAYROLL_VARIABLE', 'Payroll Variable', 'Komponen variable', '1.0',
+  ('PAYROLL_VARIABLE', 'Payroll Variable', 'Komponen variable', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"component_code","label":"Kode Komponen","required":true},{"key":"amount","label":"Nominal","required":true}]'::jsonb),
-  ('EMPLOYEE_MUTATION', 'Employee Mutation', 'Mutasi karyawan', '1.0',
+  ('EMPLOYEE_MUTATION', 'Employee Mutation', 'Mutasi karyawan', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"to_project_code","label":"Project Tujuan","required":false},{"key":"to_department","label":"Departemen Tujuan","required":false},{"key":"effective_date","label":"Efektif","required":true}]'::jsonb),
-  ('EMPLOYEE_TERMINATION', 'Employee Termination', 'Terminasi karyawan', '1.0',
+  ('EMPLOYEE_TERMINATION', 'Employee Termination', 'Terminasi karyawan', 1,
    '[{"key":"employee_code","label":"Kode Karyawan","required":true},{"key":"terminate_date","label":"Tanggal Berhenti","required":true},{"key":"reason","label":"Alasan","required":false}]'::jsonb)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT DO NOTHING;
