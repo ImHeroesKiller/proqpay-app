@@ -270,7 +270,14 @@ export async function getDashboardKpis(
 
   const ops: KpiCard[] = [
     {
-      label: "Payroll this period",
+      label: "Headcount",
+      value: String(employees),
+      change: probation ? `${probation} on probation` : "Active workforce",
+      trend: "neutral",
+      href: "/employees",
+    },
+    {
+      label: "Payroll value",
       value: current ? formatRupiah(Number(current.totalNet)) : formatRupiah(0),
       change: current
         ? `${current.name} · ${current.fundingModel === "SELF_FUNDED" ? "Self-transfer" : "Working capital"}`
@@ -279,27 +286,25 @@ export async function getDashboardKpis(
       href: "/payroll",
     },
     {
-      label: "Waiting client transfer",
-      value: String(waitingTransfer),
-      change: "Payment instruction issued; client pays employees",
-      trend: waitingTransfer ? "down" : "neutral",
+      label: "Approval pending",
+      value: String(pendingApprovals),
+      change: pendingApprovals ? "Action required" : "Queue clear",
+      trend: pendingApprovals ? "down" : "up",
+      href: "/approval",
+    },
+    {
+      label: "Exception",
+      value: String(rejectedProof + (waitingVerification > 0 ? waitingVerification : 0)),
+      change: waitingTransfer
+        ? `${waitingTransfer} waiting transfer`
+        : "No transfer backlog",
+      trend: rejectedProof || waitingVerification ? "down" : "neutral",
       href: "/payment-confirmation",
     },
     {
-      label: "Waiting verification",
-      value: String(waitingVerification),
-      change: rejectedProof
-        ? `${rejectedProof} rejected proof(s)`
-        : "Transfer proofs in review",
-      trend: waitingVerification ? "down" : "neutral",
-      href: "/payment-confirmation",
-    },
-    {
-      label: "Verified today",
+      label: "Payment success",
       value: String(verifiedToday),
-      change: pendingApprovals
-        ? `${pendingApprovals} approval step(s) open`
-        : "Confirmations verified",
+      change: "Verified confirmations today",
       trend: "up",
       href: "/payment-confirmation",
     },
@@ -331,18 +336,27 @@ export async function getDashboardKpis(
 
     ops.push(
       {
-        label: "Payroll closed",
-        value: String(closed),
-        change: `${employees} active employees · ${probation} probation`,
-        trend: "up",
-        href: "/payroll",
-      },
-      {
-        label: "Pending confirmation",
+        label: "Invoice outstanding",
         value: String(pendingConfirmation),
-        change: "Instruction issued → proof → verify",
+        change: "Cycles awaiting confirmation / billing close",
         trend: pendingConfirmation ? "down" : "neutral",
         href: "/payment-confirmation",
+      },
+      {
+        label: "Collection",
+        value: String(closed),
+        change: "Closed payroll periods (collections complete)",
+        trend: "up",
+        href: "/reports",
+      },
+      {
+        label: "Payroll SLA",
+        value: pendingApprovals || waitingVerification ? "At risk" : "On track",
+        change: closed
+          ? `${closed} closed · ${employees} headcount`
+          : "Monitor cycle velocity",
+        trend: pendingApprovals || waitingVerification ? "down" : "up",
+        href: "/reports",
       },
     );
 
@@ -356,7 +370,7 @@ export async function getDashboardKpis(
         _sum: { approvedAmount: true },
       });
       ops.push({
-        label: "Funding exposure",
+        label: "Working capital",
         value: formatRupiah(Number(exposure._sum.approvedAmount ?? 0)),
         change: `Settlement pending: ${settlementPending}`,
         trend: "down",

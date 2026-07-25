@@ -1,55 +1,97 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
+  /* Surfaces — warm white enterprise */
+  --background: #f7f5f2;
+  --foreground: #0b1f33;
+  --card: rgba(255, 255, 255, 0.78);
+  --card-solid: #ffffff;
+  --card-foreground: #0b1f33;
+
+  /* Brand */
   --primary: #0b1f33;
   --primary-foreground: #ffffff;
-  --secondary: #e2e8f0;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --secondary: #ebe7e1;
+  --secondary-foreground: #0b1f33;
+  --muted: #f0ece6;
   --muted-foreground: #64748b;
   --accent: #f28c28;
   --accent-foreground: #ffffff;
   --destructive: #dc2626;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
+
+  /* Semantic */
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #0284c7;
+
+  /* Chrome */
+  --border: #e5e0d8;
+  --input: #e5e0d8;
   --ring: #0b3a6e;
   --msg-blue: #0b3a6e;
   --navy: #0b1f33;
+  --navy-deep: #061422;
   --orange: #f28c28;
   --sidebar: #0b1f33;
-  --sidebar-foreground: #e2e8f0;
-  --radius: 0.75rem;
+  --sidebar-foreground: #e8eef5;
+  --sidebar-muted: rgba(255, 255, 255, 0.45);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(242, 140, 40, 0.18);
+
+  /* Elevation */
+  --radius: 1.25rem; /* 20px */
+  --shadow-soft: 0 1px 2px rgba(11, 31, 51, 0.04),
+    0 8px 24px rgba(11, 31, 51, 0.06);
+  --shadow-lift: 0 4px 12px rgba(11, 31, 51, 0.06),
+    0 16px 40px rgba(11, 31, 51, 0.08);
+  --glass: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.72) 100%
+  );
 }
 
 .dark {
-  --background: #0b1220;
+  --background: #070d16;
   --foreground: #f1f5f9;
-  --card: #111827;
+  --card: rgba(17, 24, 39, 0.72);
+  --card-solid: #111827;
   --card-foreground: #f1f5f9;
   --primary: #f8fafc;
   --primary-foreground: #0b1f33;
   --secondary: #1e293b;
   --secondary-foreground: #f1f5f9;
-  --muted: #1e293b;
+  --muted: #1a2332;
   --muted-foreground: #94a3b8;
   --accent: #f28c28;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #38bdf8;
   --border: #1e293b;
   --input: #1e293b;
   --ring: #f28c28;
   --sidebar: #060d18;
   --sidebar-foreground: #e2e8f0;
+  --sidebar-muted: rgba(255, 255, 255, 0.4);
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active: rgba(242, 140, 40, 0.2);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.25), 0 16px 40px rgba(0, 0, 0, 0.4);
+  --glass: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.9) 0%,
+    rgba(17, 24, 39, 0.75) 100%
+  );
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
+  --color-card: var(--card-solid);
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
@@ -60,27 +102,142 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-msg-blue: var(--msg-blue);
   --color-navy: var(--navy);
+  --color-navy-deep: var(--navy-deep);
   --color-orange: var(--orange);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui,
+    sans-serif;
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+    background-image: radial-gradient(
+        ellipse 80% 50% at 50% -20%,
+        rgba(11, 58, 110, 0.06),
+        transparent
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 100% 0%,
+        rgba(242, 140, 40, 0.04),
+        transparent
+      );
+    min-height: 100vh;
+  }
+  .dark body {
+    background-image: radial-gradient(
+        ellipse 80% 50% at 50% -20%,
+        rgba(11, 58, 110, 0.25),
+        transparent
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 100% 0%,
+        rgba(242, 140, 40, 0.08),
+        transparent
+      );
   }
   :focus-visible {
     @apply outline-none ring-2 ring-ring/60 ring-offset-2 ring-offset-background;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--orange) 35%, transparent);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    box-shadow: var(--shadow-soft);
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-lift {
+    box-shadow: var(--shadow-lift);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .gradient-navy {
+    background: linear-gradient(
+      135deg,
+      #061422 0%,
+      #0b1f33 40%,
+      #0b3a6e 100%
+    );
+  }
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.35) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes float-soft {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+  .animate-float {
+    animation: float-soft 4s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(0.85);
+    }
+  }
+  .animate-pulse-dot {
+    animation: pulse-dot 1.8s ease-in-out infinite;
   }
 }

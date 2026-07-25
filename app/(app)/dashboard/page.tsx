@@ -1,171 +1,209 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
-import { PageHeader } from "@/components/shared/page-header";
+import { CommandHero } from "@/components/dashboard/command-hero";
+import { AttentionCenter } from "@/components/dashboard/attention-center";
+import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
+import { QuickActions } from "@/components/dashboard/quick-actions";
+import { ChartsLazy } from "@/components/dashboard/charts-lazy";
+import {
+  PayrollPipeline,
+  buildPipeline,
+} from "@/components/dashboard/payroll-pipeline";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  getAuditLogs,
   getDashboardAlerts,
   getDashboardKpis,
   getPayrollChartData,
   getPayrollPeriods,
 } from "@/lib/data/queries";
 import { requireModule } from "@/lib/auth/session";
+import { auth } from "@/lib/auth";
 import { formatRupiah } from "@/lib/utils";
 import { fundingModelLabel } from "@/lib/domain/workflow";
-import { canViewExecutiveDashboard } from "@/lib/auth/permissions";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Info,
-  Plus,
-  ShieldAlert,
-} from "lucide-react";
-
-const alertIcon = {
-  warning: AlertTriangle,
-  info: Info,
-  danger: ShieldAlert,
-  success: CheckCircle2,
-} as const;
+import { buildHeuristicInsights } from "@/lib/ai/proq-intelligence";
 
 export default async function DashboardPage() {
   const scope = await requireModule("dashboard");
-  const [dashboardKpis, dashboardAlerts, payrollPeriods, chartData] =
+  const session = await auth();
+  const [dashboardKpis, dashboardAlerts, payrollPeriods, chartData, auditLogs] =
     await Promise.all([
       getDashboardKpis(scope.role, scope),
       getDashboardAlerts(scope),
       getPayrollPeriods(scope),
       getPayrollChartData(scope),
+      getAuditLogs(scope),
     ]);
 
-  const upcoming = payrollPeriods.find((p) => p.status === "WAITING");
-  const executive = canViewExecutiveDashboard(scope.role);
+  const active =
+    payrollPeriods.find((p) =>
+      [
+        "WAITING",
+        "APPROVED",
+        "PAYMENT_INSTRUCTION_GENERATED",
+        "WAITING_CLIENT_TRANSFER",
+        "TRANSFER_PROOF_UPLOADED",
+        "UNDER_VERIFICATION",
+      ].includes(p.status),
+    ) ?? payrollPeriods[0];
+
+  const hasDanger = dashboardAlerts.some((a) => a.type === "danger");
+  const hasWarning = dashboardAlerts.some((a) => a.type === "warning");
+  const healthTone = hasDanger ? "critical" : hasWarning ? "watch" : "good";
+  const healthLabel = hasDanger
+    ? "Critical attention required"
+    : hasWarning
+      ? "Watch — open items"
+      : "Healthy · on track";
+
+  const pipeline = buildPipeline(active?.status, {
+    pendingApprovals: dashboardAlerts.some((a) => a.id === "al_approval")
+      ? 1
+      : 0,
+    failedPayments: dashboardAlerts.some((a) => a.id === "al_fail") ? 1 : 0,
+  });
+
+  const initialIntelligence = buildHeuristicInsights({
+    userName: session?.user?.name,
+    kpis: dashboardKpis,
+    alerts: dashboardAlerts,
+    periods: payrollPeriods,
+  });
 
   return (
-    <div>
-      <PageHeader
-        title={executive ? "Operations & executive dashboard" : "Operations dashboard"}
-        description="After payment instruction, the client transfers from the client bank and uploads proof. ProQPay verifies before payroll closes."
-        actions={
-          <>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/payment-instructions">Instructions</Link>
-            </Button>
-            <Button asChild variant="accent" size="sm">
-              <Link href="/payment-confirmation">
-                <Plus className="h-3.5 w-3.5" />
-                Payment confirmation
-              </Link>
-            </Button>
-          </>
-        }
+    <div className="space-y-6">
+      <CommandHero
+        periodName={active?.name}
+        healthLabel={healthLabel}
+        healthTone={healthTone}
+        initialIntelligence={initialIntelligence}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {dashboardKpis.map((item) => (
-          <KpiCard key={item.label} item={item} />
-        ))}
-      </div>
+      <section aria-label="Payroll pipeline">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="font-display">Payroll pipeline</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Attendance → Validation → Calculation → Approval → Instruction →
+                Confirmation → Completed
+              </p>
+            </div>
+            {active ? (
+              <Badge variant="secondary">{active.status.replaceAll("_", " ")}</Badge>
+            ) : null}
+          </CardHeader>
+          <CardContent>
+            <PayrollPipeline stages={pipeline} />
+          </CardContent>
+        </Card>
+      </section>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <section aria-label="Key performance indicators">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {dashboardKpis.map((item, index) => (
+            <KpiCard key={item.label} item={item} index={index} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Quick actions">
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <h2 className="font-display text-base font-semibold">Quick actions</h2>
+            <p className="text-xs text-muted-foreground">
+              High-frequency payroll operations
+            </p>
+          </div>
+        </div>
+        <QuickActions />
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Payroll amount trend (IDR juta)</CardTitle>
+            <CardTitle>Payroll value trend</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Net payroll by period (IDR juta)
+            </p>
           </CardHeader>
           <CardContent className="h-72">
-            <DashboardCharts data={chartData} />
+            <ChartsLazy data={chartData} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Alerts & compliance</CardTitle>
+            <CardTitle>Attention center</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Critical · Warning · Information
+            </p>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {dashboardAlerts.map((alert) => {
-              const Icon = alertIcon[alert.type];
-              return (
-                <div
-                  key={alert.id}
-                  className="rounded-lg border border-border p-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <Icon className="mt-0.5 h-4 w-4 text-orange" />
-                    <div>
-                      <p className="text-sm font-semibold">{alert.title}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {alert.description}
-                      </p>
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        {alert.time}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <CardContent>
+            <AttentionCenter alerts={dashboardAlerts} />
           </CardContent>
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Upcoming payroll</CardTitle>
-            {upcoming ? (
-              <div className="flex gap-2">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Active payroll</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Current period at a glance
+              </p>
+            </div>
+            {active ? (
+              <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">
-                  {fundingModelLabel(upcoming.fundingModel)}
+                  {fundingModelLabel(active.fundingModel)}
                 </Badge>
-                <Badge variant="warning">{upcoming.status}</Badge>
+                <Badge variant="warning">
+                  {active.status.replaceAll("_", " ")}
+                </Badge>
               </div>
             ) : null}
           </CardHeader>
           <CardContent>
-            {upcoming ? (
+            {active ? (
               <div className="space-y-2 text-sm">
-                <p className="text-lg font-semibold">{upcoming.name}</p>
+                <p className="font-display text-lg font-semibold">{active.name}</p>
                 <p className="text-muted-foreground">
-                  Pay date · {upcoming.payDate}
+                  Pay date · {active.payDate}
                 </p>
                 <p className="text-muted-foreground">
-                  Net total · {formatRupiah(upcoming.totalNet)}
+                  Net total · {formatRupiah(active.totalNet)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Source of funds path does not force working capital unless the
-                  period is marked WORKING_CAPITAL.
+                  {active.employeeCount} employees · source of funds follows the
+                  period funding model.
                 </p>
                 <Button asChild size="sm" className="mt-3">
-                  <Link href={`/payroll/${upcoming.id}`}>Open period</Link>
+                  <Link href={`/payroll/${active.id}`}>Open period</Link>
                 </Button>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No upcoming payroll.</p>
+              <p className="text-sm text-muted-foreground">
+                No active payroll period.
+              </p>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Quick actions</CardTitle>
+            <CardTitle>Activity</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Recent operational events
+            </p>
           </CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2">
-            {[
-              { label: "Generate payroll", href: "/payroll" },
-              { label: "Review approvals", href: "/approval" },
-              { label: "Payment instructions", href: "/payment-instructions" },
-              { label: "Payment confirmation", href: "/payment-confirmation" },
-              { label: "Working capital", href: "/working-capital" },
-              { label: "Audit trail", href: "/audit" },
-            ].map((action) => (
-              <Button key={action.href} asChild variant="outline" size="sm">
-                <Link href={action.href}>{action.label}</Link>
-              </Button>
-            ))}
+          <CardContent className="max-h-80 overflow-y-auto">
+            <ActivityTimeline items={auditLogs.slice(0, 8)} />
           </CardContent>
         </Card>
       </div>

@@ -43,21 +43,30 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-4">
-        <div className="text-center">
-          <div className="text-2xl font-bold tracking-tight">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <div className="pointer-events-none absolute inset-0 gradient-navy opacity-95" />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-20"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      <div className="relative w-full max-w-md space-y-5">
+        <div className="text-center text-white">
+          <div className="font-display text-3xl font-bold tracking-tight">
             Pro<span className="text-orange">Q</span>Pay
           </div>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            An MSG Technology Product
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
+            Enterprise Payroll Operating System
           </p>
         </div>
-        <Card>
+        <Card className="border-white/10 shadow-lift">
           <CardHeader>
-            <CardTitle>Sign in</CardTitle>
+            <CardTitle className="font-display">Sign in</CardTitle>
             <CardDescription>
-              Enterprise Payroll Operating System — demo environment
+              Secure access to payroll service operations
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -71,6 +80,7 @@ function LoginForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="username"
                   required
+                  className="rounded-2xl"
                 />
               </div>
               <div className="space-y-2">
@@ -82,16 +92,19 @@ function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
+                  className="rounded-2xl"
                 />
               </div>
               {error ? (
-                <p className="text-sm text-destructive">{error}</p>
+                <p className="text-sm text-destructive" role="alert">
+                  {error}
+                </p>
               ) : null}
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
-            <div className="mt-6 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            <div className="mt-6 rounded-2xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               <p className="font-semibold text-foreground">Demo accounts</p>
               <p className="mt-1">Password for all: {DEMO_PASSWORD}</p>
               <ul className="mt-2 space-y-1">
@@ -119,7 +132,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
+        <div className="flex min-h-screen items-center justify-center bg-navy text-white">
           Loading...
         </div>
       }

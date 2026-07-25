@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" fill="none">
+  <rect width="640" height="400" rx="32" fill="#0B1F33"/>
+  <circle cx="520" cy="80" r="90" fill="#F28C28" fill-opacity="0.18"/>
+  <circle cx="120" cy="320" r="110" fill="#0B3A6E" fill-opacity="0.55"/>
+  <rect x="80" y="90" width="280" height="180" rx="24" fill="#FFFFFF" fill-opacity="0.08" stroke="#FFFFFF" stroke-opacity="0.15"/>
+  <rect x="104" y="118" width="120" height="12" rx="6" fill="#F28C28"/>
+  <rect x="104" y="148" width="200" height="8" rx="4" fill="#FFFFFF" fill-opacity="0.35"/>
+  <rect x="104" y="168" width="160" height="8" rx="4" fill="#FFFFFF" fill-opacity="0.22"/>
+  <rect x="104" y="200" width="72" height="40" rx="12" fill="#10B981" fill-opacity="0.85"/>
+  <rect x="188" y="200" width="72" height="40" rx="12" fill="#F28C28" fill-opacity="0.9"/>
+  <rect x="272" y="200" width="56" height="40" rx="12" fill="#FFFFFF" fill-opacity="0.15"/>
+  <path d="M400 140c40-30 90-20 110 10s10 80-30 100-90 10-110-20 0-60 30-90z" fill="#F28C28" fill-opacity="0.25"/>
+  <circle cx="470" cy="200" r="48" fill="#FFE8D2"/>
+  <path d="M430 188c8-28 72-28 80 0" fill="#0B1F33"/>
+  <circle cx="470" cy="170" r="8" fill="#F28C28"/>
+  <circle cx="454" cy="200" r="4" fill="#0B1F33"/>
+  <circle cx="486" cy="200" r="4" fill="#0B1F33"/>
+  <path d="M456 218c8 10 20 10 28 0" stroke="#0B1F33" stroke-width="3" stroke-linecap="round"/>
+  <text x="80" y="340" fill="#FFFFFF" font-family="system-ui,sans-serif" font-size="20" font-weight="700">Payroll Command Center</text>
+  <text x="80" y="364" fill="#FFFFFF" fill-opacity="0.55" font-family="system-ui,sans-serif" font-size="13">ProQPay · Enterprise Payroll OS</text>
+</svg>

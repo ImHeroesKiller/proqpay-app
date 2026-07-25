@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { Menu, LogOut, Moon, Sun } from "lucide-react";
+import { Menu, LogOut, Moon, Sun, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
@@ -11,7 +11,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const user = data?.user;
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/80 bg-background/80 px-4 backdrop-blur-xl sm:px-6">
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
@@ -20,10 +20,13 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           onClick={onMenuClick}
           aria-label="Open menu"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-5 w-5" strokeWidth={1.85} />
         </Button>
-        <div className="hidden text-sm text-muted-foreground sm:block">
-          Enterprise Payroll Operating System
+        <div className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
+          <Sparkles className="h-3.5 w-3.5 text-orange" strokeWidth={1.85} />
+          <span className="font-medium text-foreground/80">
+            Enterprise Payroll Operating System
+          </span>
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -36,13 +39,13 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           }
         >
           {resolvedTheme === "dark" ? (
-            <Sun className="h-4 w-4" />
+            <Sun className="h-4 w-4" strokeWidth={1.85} />
           ) : (
-            <Moon className="h-4 w-4" />
+            <Moon className="h-4 w-4" strokeWidth={1.85} />
           )}
         </Button>
-        <div className="hidden items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 sm:flex">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-[10px] font-bold text-white dark:bg-white dark:text-navy">
+        <div className="hidden items-center gap-2 rounded-2xl border border-border/80 bg-card/70 px-2.5 py-1.5 shadow-soft sm:flex">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-[10px] font-bold text-white dark:bg-orange dark:text-white">
             {user?.avatarInitials ?? "U"}
           </div>
           <div className="leading-tight">
@@ -57,7 +60,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           size="sm"
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
-          <LogOut className="h-3.5 w-3.5" />
+          <LogOut className="h-3.5 w-3.5" strokeWidth={1.85} />
           <span className="hidden sm:inline">Sign out</span>
         </Button>
       </div>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240" fill="none">
+  <rect width="320" height="240" rx="28" fill="#F7F5F2"/>
+  <rect x="40" y="40" width="240" height="160" rx="20" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <circle cx="80" cy="80" r="18" fill="#0B1F33"/>
+  <rect x="112" y="68" width="120" height="10" rx="5" fill="#0B1F33"/>
+  <rect x="112" y="86" width="80" height="8" rx="4" fill="#F28C28"/>
+  <rect x="56" y="120" width="208" height="10" rx="5" fill="#EBE7E1"/>
+  <rect x="56" y="140" width="160" height="10" rx="5" fill="#EBE7E1"/>
+  <rect x="56" y="160" width="120" height="10" rx="5" fill="#EBE7E1"/>
+  <text x="56" y="210" fill="#64748B" font-family="system-ui,sans-serif" font-size="12" font-weight="600">payment</text>
+</svg>
