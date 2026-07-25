@@ -13,14 +13,13 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { DEMO_ACCOUNTS } from "@/lib/data/constants";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const rawCallback = params.get("callbackUrl") ?? "/dashboard";
   const callbackUrl = rawCallback.startsWith("/") ? rawCallback : "/dashboard";
-  const [email, setEmail] = useState("siti.rahayu@msg-os.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -106,30 +105,6 @@ function LoginForm() {
                   {loading ? "Signing in…" : "Sign in"}
                 </Button>
               </form>
-              {process.env.NODE_ENV === "development" ? (
-                <div className="mt-6 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground">
-                    Operator accounts (local development)
-                  </p>
-                  <p className="mt-1">
-                    Use the shared operator password from your environment seed
-                    configuration. Select an account to fill email.
-                  </p>
-                  <ul className="mt-2 space-y-1">
-                    {DEMO_ACCOUNTS.map((u) => (
-                      <li key={u.email}>
-                        <button
-                          type="button"
-                          className="text-left hover:text-orange focus-visible:text-orange"
-                          onClick={() => setEmail(u.email)}
-                        >
-                          {u.email} · {u.role.replaceAll("_", " ")}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
             </CardContent>
           </Card>
           <p className="text-center text-[11px] text-muted-foreground">
