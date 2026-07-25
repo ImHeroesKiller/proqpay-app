@@ -3,6 +3,10 @@ import { Inter, Manrope } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
+// Keep authenticated server rendering close to Indonesian users and the
+// Asia-Pacific database region instead of the previous US-East default.
+export const preferredRegion = "sin1";
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
