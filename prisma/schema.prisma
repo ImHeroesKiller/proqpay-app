@@ -486,6 +486,7 @@ model User {
   wcCreated             WorkingCapitalRequest[] @relation("WcCreatedBy")
   wcReviewed            WorkingCapitalRequest[] @relation("WcReviewedBy")
   wcApproved            WorkingCapitalRequest[] @relation("WcApprovedBy")
+  payrollPeriodsLocked  PayrollPeriod[]         @relation("PayrollPeriodLockedBy")
 
   @@index([organizationId])
   @@index([companyId])
@@ -574,7 +575,8 @@ model PayrollPeriod {
   lockedAt                 DateTime?                @map("locked_at")
   projectId                String?                  @map("project_id") @db.Uuid
   payrollGroupId           String?                  @map("payroll_group_id") @db.Uuid
-  lockedBy                 String?                  @map("locked_by") @db.Uuid
+  /// Actual DB column on ImHeroesKiller: locked_by_id
+  lockedById               String?                  @map("locked_by_id") @db.Uuid
   snapshotJson             Json?                    @map("snapshot_json")
   calculationVersion       Int                      @default(1) @map("calculation_version")
   createdAt                DateTime                 @default(now()) @map("created_at")
@@ -583,6 +585,7 @@ model PayrollPeriod {
   project                  Project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
   payrollGroup             PayrollGroup?            @relation(fields: [payrollGroupId], references: [id], onDelete: SetNull)
   sourceBankAccount        BankAccount?             @relation("PayrollSourceAccount", fields: [sourceBankAccountId], references: [id], onDelete: SetNull)
+  lockedBy                 User?                    @relation("PayrollPeriodLockedBy", fields: [lockedById], references: [id], onDelete: SetNull)
   lines                    PayrollLine[]
   approvals                ApprovalStep[]
   disbursements            DisbursementBatch[]
@@ -1130,7 +1133,8 @@ model Project {
   costCenter   CostCenter?   @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   headcountQuota Int?           @map("headcount_quota")
   serviceType    String?        @map("service_type")
-  budgetAmount   Decimal?       @map("budget_amount") @db.Decimal(18, 2)
+  /// Actual DB column on ImHeroesKiller: project_budget
+  projectBudget  Decimal?       @map("project_budget") @db.Decimal(18, 2)
   operationalPic String?        @map("operational_pic")
   assignments  ProjectAssignment[]
   payrollPeriods PayrollPeriod[]

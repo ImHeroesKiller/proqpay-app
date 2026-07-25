@@ -317,7 +317,7 @@ export async function lockPayrollPeriod(scope: SessionScope, periodId: string) {
       data: {
         status: "LOCKED",
         lockedAt: new Date(),
-        lockedBy: scope.userId,
+        lockedById: scope.userId,
         snapshotJson: snapshot,
       },
     });
