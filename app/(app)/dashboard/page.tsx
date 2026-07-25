@@ -11,14 +11,7 @@ import { ClientPayrollTable } from "@/components/dashboard/client-payroll-table"
 import { buildPipeline } from "@/lib/domain/payroll-pipeline";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  getAuditLogs,
-  getDashboardAlerts,
-  getDashboardKpis,
-  getPayrollByClientProject,
-  getPayrollChartData,
-  getPayrollPeriods,
-} from "@/lib/data/queries";
+import { getDashboardSnapshot } from "@/lib/data/dashboard-snapshot";
 import { requireModule } from "@/lib/auth/session";
 import { auth } from "@/lib/auth";
 import { formatRupiah } from "@/lib/utils";
@@ -54,21 +47,14 @@ function formatIdDate(iso?: string) {
 export default async function DashboardPage() {
   const scope = await requireModule("dashboard");
   const session = await auth();
-  const [
+  const {
     dashboardKpis,
     dashboardAlerts,
     payrollPeriods,
     chartData,
     auditLogs,
     clientRows,
-  ] = await Promise.all([
-    getDashboardKpis(scope.role, scope),
-    getDashboardAlerts(scope),
-    getPayrollPeriods(scope),
-    getPayrollChartData(scope),
-    getAuditLogs(scope),
-    getPayrollByClientProject(scope),
-  ]);
+  } = await getDashboardSnapshot(scope.role, scope);
 
   const active =
     payrollPeriods.find((p) =>
@@ -117,7 +103,6 @@ export default async function DashboardPage() {
   const slaOnTrack = pendingApprovals === 0 && failedPayments === 0;
   const slaValue = slaOnTrack ? 92 : 78;
 
-  // Exactly six executive KPI cards — presentation layer over real data
   const executiveKpis: KpiCardType[] = [
     {
       label: "Total Karyawan",
@@ -259,7 +244,7 @@ export default async function DashboardPage() {
             <ChartsLazy
               data={chartData.map((d) => ({
                 ...d,
-                amount: d.amount / 1000, // juta → miliar when seed uses large nets; keep scale friendly
+                amount: d.amount / 1000,
               }))}
             />
           </CardContent>
