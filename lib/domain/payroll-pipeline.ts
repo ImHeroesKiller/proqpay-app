@@ -1,13 +1,3 @@
-import {
-  CalendarCheck,
-  ShieldCheck,
-  Calculator,
-  GitBranch,
-  FileText,
-  ClipboardCheck,
-  PartyPopper,
-  type LucideIcon,
-} from "lucide-react";
 import type { PayrollStatus } from "@/types";
 
 export type PipelineStageStatus =
@@ -17,6 +7,15 @@ export type PipelineStageStatus =
   | "warning"
   | "critical";
 
+export type PipelineIconKey =
+  | "attendance"
+  | "validation"
+  | "calculation"
+  | "approval"
+  | "instruction"
+  | "confirmation"
+  | "completed";
+
 export type PipelineStage = {
   key: string;
   label: string;
@@ -24,43 +23,38 @@ export type PipelineStage = {
   owner?: string;
   completedAt?: string;
   tooltip?: string;
-  icon: LucideIcon;
+  /** Serializable icon id — resolved to a Lucide component on the client */
+  iconKey: PipelineIconKey;
 };
 
 const STAGE_DEFS: {
-  key: string;
+  key: PipelineIconKey;
   label: string;
-  icon: LucideIcon;
   statuses: PayrollStatus[];
 }[] = [
   {
     key: "attendance",
     label: "Attendance",
-    icon: CalendarCheck,
     statuses: ["DRAFT"],
   },
   {
     key: "validation",
     label: "Validation",
-    icon: ShieldCheck,
     statuses: ["DRAFT", "WAITING"],
   },
   {
     key: "calculation",
     label: "Payroll Calculation",
-    icon: Calculator,
     statuses: ["WAITING"],
   },
   {
     key: "approval",
     label: "Approval",
-    icon: GitBranch,
     statuses: ["WAITING", "APPROVED"],
   },
   {
     key: "instruction",
     label: "Payment Instruction",
-    icon: FileText,
     statuses: [
       "APPROVED",
       "LOCKED",
@@ -71,7 +65,6 @@ const STAGE_DEFS: {
   {
     key: "confirmation",
     label: "Payment Confirmation",
-    icon: ClipboardCheck,
     statuses: [
       "WAITING_CLIENT_TRANSFER",
       "TRANSFER_PROOF_UPLOADED",
@@ -82,7 +75,6 @@ const STAGE_DEFS: {
   {
     key: "completed",
     label: "Completed",
-    icon: PartyPopper,
     statuses: ["CLOSED", "DISBURSED", "VERIFIED"],
   },
 ];
@@ -121,7 +113,7 @@ export function buildPipeline(
     return STAGE_DEFS.map((s, i) => ({
       key: s.key,
       label: s.label,
-      icon: s.icon,
+      iconKey: s.key,
       status: i === 0 ? "current" : "upcoming",
       tooltip: "No active payroll period",
     }));
@@ -138,7 +130,7 @@ export function buildPipeline(
     return {
       key: s.key,
       label: s.label,
-      icon: s.icon,
+      iconKey: s.key,
       status: st,
       owner:
         i === 0

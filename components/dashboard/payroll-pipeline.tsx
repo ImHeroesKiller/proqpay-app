@@ -1,17 +1,44 @@
 "use client";
 
 import { motion } from "framer-motion";
+import {
+  CalendarCheck,
+  ShieldCheck,
+  Calculator,
+  GitBranch,
+  FileText,
+  ClipboardCheck,
+  PartyPopper,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PipelineStage } from "@/lib/domain/payroll-pipeline";
+import type {
+  PipelineIconKey,
+  PipelineStage,
+} from "@/lib/domain/payroll-pipeline";
 
-export type { PipelineStage, PipelineStageStatus } from "@/lib/domain/payroll-pipeline";
+export type {
+  PipelineStage,
+  PipelineStageStatus,
+  PipelineIconKey,
+} from "@/lib/domain/payroll-pipeline";
+
+const ICONS: Record<PipelineIconKey, LucideIcon> = {
+  attendance: CalendarCheck,
+  validation: ShieldCheck,
+  calculation: Calculator,
+  approval: GitBranch,
+  instruction: FileText,
+  confirmation: ClipboardCheck,
+  completed: PartyPopper,
+};
 
 export function PayrollPipeline({ stages }: { stages: PipelineStage[] }) {
   return (
     <div className="w-full overflow-x-auto pb-1">
       <ol className="flex min-w-[720px] items-stretch gap-0" aria-label="Payroll pipeline">
         {stages.map((stage, index) => {
-          const Icon = stage.icon;
+          const Icon = ICONS[stage.iconKey] ?? FileText;
           const isLast = index === stages.length - 1;
           return (
             <li key={stage.key} className="relative flex flex-1 flex-col items-center">
