@@ -1,34 +1,36 @@
 export const dynamic = "force-dynamic";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
 import { EmployeesTable } from "@/components/employees/employees-table";
 import { getEmployees } from "@/lib/data/queries";
+import { requireModule } from "@/lib/auth/session";
+import Link from "next/link";
 import { Upload } from "lucide-react";
 
 export default async function EmployeesPage() {
-  const employees = await getEmployees();
+  const scope = await requireModule("employees");
+  const employees = await getEmployees(scope);
 
   return (
     <div>
       <PageHeader
         title="Employees"
-        description="Payroll-relevant employee directory. Not a full HRIS."
+        description="Master karyawan enterprise — data dari Supabase schema proqpay. Field sensitif dimasking."
         actions={
           <>
-            <Button variant="outline" size="sm" disabled>
+            <Link
+              href="/import"
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-white px-3 text-sm font-medium text-navy hover:bg-muted/40"
+            >
               <Upload className="h-3.5 w-3.5" />
-              Bulk upload
-            </Button>
-            <Button size="sm" disabled>
-              Add employee
-            </Button>
+              Bulk Import
+            </Link>
           </>
         }
       />
-      <p className="mb-4 text-xs text-muted-foreground">
-        Bulk upload is a placeholder for future CSV/XLSX import. Data source:
-        Supabase PostgreSQL via Prisma.
+      <p className="mb-4 text-sm text-muted-foreground">
+        Menampilkan <strong>{employees.length}</strong> karyawan dari database.
+        Gunakan Bulk Import Center untuk unggah Excel resmi.
       </p>
       <EmployeesTable data={employees} />
     </div>

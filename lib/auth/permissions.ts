@@ -20,7 +20,11 @@ export type AppModule =
   | "pricing"
   | "capital_partners"
   | "capital_allocations"
-  | "roadmap";
+  | "roadmap"
+  | "import"
+  | "scheme_builder"
+  | "billing"
+  | "validation";
 
 /** Internal commercial / confidential modules. */
 export const CONFIDENTIAL_MODULES: AppModule[] = [
@@ -29,6 +33,13 @@ export const CONFIDENTIAL_MODULES: AppModule[] = [
   "pricing",
   "capital_partners",
   "capital_allocations",
+];
+
+const ENTERPRISE_OPS: AppModule[] = [
+  "import",
+  "scheme_builder",
+  "billing",
+  "validation",
 ];
 
 const ROLE_MODULES: Record<Role, AppModule[]> = {
@@ -52,6 +63,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "capital_partners",
     "capital_allocations",
     "roadmap",
+    ...ENTERPRISE_OPS,
   ],
   DIRECTOR: [
     "dashboard",
@@ -72,6 +84,7 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "pricing",
     "capital_partners",
     "capital_allocations",
+    ...ENTERPRISE_OPS,
   ],
   PAYROLL_ADMIN: [
     "dashboard",
@@ -87,6 +100,8 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "reports",
     "audit",
     "settings",
+    "clients",
+    ...ENTERPRISE_OPS,
   ],
   PAYROLL_OPERATOR: [
     "dashboard",
@@ -97,6 +112,10 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payment_instructions",
     "payment_confirmation",
     "reports",
+    "import",
+    "validation",
+    "scheme_builder",
+    "clients",
   ],
   FINANCE: [
     "dashboard",
@@ -113,6 +132,9 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "settings",
     "capital_partners",
     "capital_allocations",
+    "billing",
+    "validation",
+    "clients",
   ],
   HR: [
     "dashboard",
@@ -123,6 +145,8 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payment_confirmation",
     "reports",
     "settings",
+    "import",
+    "clients",
   ],
   APPROVER: [
     "dashboard",
@@ -132,6 +156,8 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payment_confirmation",
     "reports",
     "audit",
+    "validation",
+    "scheme_builder",
   ],
   AUDITOR: [
     "dashboard",
@@ -140,6 +166,8 @@ const ROLE_MODULES: Record<Role, AppModule[]> = {
     "payment_confirmation",
     "reports",
     "audit",
+    "validation",
+    "billing",
   ],
   VIEWER: ["dashboard", "payroll", "reports"],
 };

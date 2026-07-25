@@ -174,8 +174,8 @@ export async function recalculatePayrollPeriod(
   if (scope.role !== "SUPER_ADMIN" && scope.companyId && period.companyId !== scope.companyId) {
     throw new Error("Cross-company denied");
   }
-  if (["LOCKED", "CLOSED", "DISBURSED"].includes(period.status)) {
-    throw new Error("Cannot recalculate locked/closed period");
+  if (["LOCKED", "CLOSED", "DISBURSED", "PAYMENT_INSTRUCTION_GENERATED"].includes(period.status)) {
+    throw new Error("Payroll terkunci. Gunakan correction run / version baru untuk koreksi.");
   }
 
   const bpjsCfg = await prisma.bpjsConfig.findFirst({
@@ -239,6 +239,19 @@ export async function recalculatePayrollPeriod(
         tax: calc.tax,
         bpjs: calc.bpjs,
         netPay: calc.netPay,
+        grossPay: calc.gross,
+        bpjsEmployer: calc.bpjsEmployer,
+        pph21: calc.pph21,
+        componentBreakdown: [
+          { code: "BASIC_SALARY", name: "Gaji Pokok", kind: "EARNING", amount: calc.baseSalary },
+          { code: "ALLOWANCES", name: "Tunjangan", kind: "EARNING", amount: calc.allowances },
+          { code: "OVERTIME", name: "Lembur", kind: "EARNING", amount: calc.overtime },
+          { code: "BONUSES", name: "Bonus", kind: "EARNING", amount: calc.bonuses },
+          { code: "DEDUCTIONS", name: "Potongan", kind: "DEDUCTION", amount: calc.deductions },
+          { code: "BPJS_EMPLOYEE", name: "BPJS Karyawan", kind: "DEDUCTION", amount: calc.bpjs },
+          { code: "PPH21", name: "PPh21", kind: "DEDUCTION", amount: calc.pph21 },
+        ],
+        version: { increment: 1 },
       },
     });
 
@@ -260,11 +273,120 @@ export async function recalculatePayrollPeriod(
       totalBpjsEmployer: totalBpjsEr,
       totalPph21: totalPph,
       version: { increment: 1 },
+      calculationVersion: { increment: 1 },
       employeeCount: period.lines.length,
     },
   });
 
   await audit(scope, "RECALCULATE_PAYROLL", "PayrollPeriod", periodId, `v${period.version + 1}`, period.companyId);
+}
+
+export async function lockPayrollPeriod(scope: SessionScope, periodId: string) {
+  const period = await prisma.payrollPeriod.findUnique({
+    where: { id: periodId },
+    include: { lines: true },
+  });
+  if (!period) throw new Error("Periode tidak ditemukan");
+  if (scope.role !== "SUPER_ADMIN" && scope.companyId && period.companyId !== scope.companyId) {
+    throw new Error("Akses lintas client ditolak");
+  }
+  if (period.status !== "APPROVED" && period.status !== "LOCKED") {
+    throw new Error("Hanya payroll APPROVED yang dapat dikunci");
+  }
+  if (period.status === "LOCKED") return;
+
+  const snapshot = {
+    periodId: period.id,
+    name: period.name,
+    totalGross: Number(period.totalGross),
+    totalNet: Number(period.totalNet),
+    employeeCount: period.employeeCount,
+    lines: period.lines.map((l) => ({
+      id: l.id,
+      employeeId: l.employeeId,
+      employeeName: l.employeeName,
+      netPay: Number(l.netPay),
+      grossPay: Number(l.grossPay ?? 0),
+    })),
+    lockedAt: new Date().toISOString(),
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.payrollPeriod.update({
+      where: { id: periodId },
+      data: {
+        status: "LOCKED",
+        lockedAt: new Date(),
+        lockedBy: scope.userId,
+        snapshotJson: snapshot,
+      },
+    });
+    await tx.payrollLine.updateMany({
+      where: { payrollPeriodId: periodId },
+      data: { isLocked: true },
+    });
+  });
+
+  await audit(scope, "LOCK_PAYROLL", "PayrollPeriod", periodId, undefined, period.companyId);
+}
+
+export async function generatePayslips(scope: SessionScope, periodId: string) {
+  const period = await prisma.payrollPeriod.findUnique({
+    where: { id: periodId },
+    include: { lines: { include: { employee: true } }, company: true },
+  });
+  if (!period) throw new Error("Periode tidak ditemukan");
+  if (!["APPROVED", "LOCKED", "DISBURSED", "PAYMENT_INSTRUCTION_GENERATED", "CLOSED"].includes(period.status)) {
+    throw new Error("Payslip hanya untuk payroll yang sudah disetujui/dikunci");
+  }
+
+  let created = 0;
+  for (const line of period.lines) {
+    const existing = await prisma.payslip.findUnique({
+      where: {
+        payrollPeriodId_employeeId: {
+          payrollPeriodId: periodId,
+          employeeId: line.employeeId,
+        },
+      },
+    });
+    if (existing) continue;
+    const payslipNumber = `PS-${period.name.replace(/\s+/g, "").toUpperCase()}-${line.employee.employeeCode}`;
+    await prisma.payslip.create({
+      data: {
+        id: randomUUID(),
+        payrollPeriodId: periodId,
+        payrollLineId: line.id,
+        employeeId: line.employeeId,
+        payslipNumber,
+        issuedAt: new Date(),
+        payloadJson: {
+          employeeName: line.employeeName,
+          employeeCode: line.employee.employeeCode,
+          department: line.department,
+          period: period.name,
+          company: period.company.name,
+          components: line.componentBreakdown ?? [],
+          baseSalary: Number(line.baseSalary),
+          allowances: Number(line.allowances),
+          overtime: Number(line.overtime),
+          bonuses: Number(line.bonuses),
+          deductions: Number(line.deductions),
+          bpjs: Number(line.bpjs),
+          pph21: Number(line.pph21 ?? line.tax),
+          gross: Number(line.grossPay ?? 0),
+          netPay: Number(line.netPay),
+          bankMasked: line.employee.bankAccount
+            ? `****${line.employee.bankAccount.slice(-4)}`
+            : "—",
+        },
+      },
+    });
+    created++;
+  }
+
+  await audit(scope, "GENERATE_PAYSLIPS", "PayrollPeriod", periodId, `${created} payslips`, period.companyId);
+  return { created };
 }
 
 export async function generatePaymentInstruction(

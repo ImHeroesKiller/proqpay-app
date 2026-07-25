@@ -42,8 +42,37 @@ export async function getEmployees(scope?: SessionScope) {
   const rows = await prisma.employee.findMany({
     where,
     orderBy: { employeeCode: "asc" },
+    include: {
+      company: { select: { name: true } },
+      projectAssignments: {
+        where: { isActive: true },
+        take: 1,
+        include: { project: { select: { name: true, code: true } } },
+      },
+      payrollGroup: { select: { name: true, code: true } },
+    },
   });
-  return rows.map(mapEmployee);
+  return rows.map((row) => {
+    const base = mapEmployee(row);
+    const issues: string[] = [];
+    if (!row.bankAccount || row.bankAccount === "-") issues.push("Bank");
+    if (!row.npwp || row.npwp === "-") issues.push("NPWP");
+    if (!row.bpjsNumber || row.bpjsNumber === "-") issues.push("BPJS");
+    return {
+      ...base,
+      clientName: row.company?.name,
+      projectName: row.projectAssignments[0]
+        ? `${row.projectAssignments[0].project.code} · ${row.projectAssignments[0].project.name}`
+        : undefined,
+      payrollGroupName: row.payrollGroup
+        ? `${row.payrollGroup.code} · ${row.payrollGroup.name}`
+        : undefined,
+      bankMasked: row.bankAccount
+        ? `****${row.bankAccount.slice(-4)}`
+        : "—",
+      dataQuality: issues.length ? `Perlu: ${issues.join(", ")}` : "Lengkap",
+    };
+  });
 }
 
 export async function getEmployeeById(id: string, scope?: SessionScope) {
@@ -155,8 +184,20 @@ export async function getCompanySettings(scope?: SessionScope) {
 }
 
 export async function getClients(scope: SessionScope) {
-  if (scope.role !== "SUPER_ADMIN" && scope.role !== "DIRECTOR") return [];
+  // Master client list for ops roles with clients module access
+  if (
+    !["SUPER_ADMIN", "DIRECTOR", "PAYROLL_ADMIN", "PAYROLL_OPERATOR", "FINANCE", "HR"].includes(
+      scope.role,
+    )
+  ) {
+    return [];
+  }
+  const where =
+    scope.companyId && scope.role !== "SUPER_ADMIN" && scope.role !== "DIRECTOR"
+      ? { id: scope.companyId }
+      : {};
   const rows = await prisma.company.findMany({
+    where,
     orderBy: { name: "asc" },
   });
   return rows.map(mapClientCompany);
