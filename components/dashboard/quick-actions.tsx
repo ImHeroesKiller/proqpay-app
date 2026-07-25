@@ -71,6 +71,7 @@ export function QuickActions() {
             whileHover={{ y: -3 }}
           >
             <Link
+              prefetch={false}
               href={action.href}
               className={cn(
                 "group flex h-full flex-col items-center justify-center gap-3 rounded-[18px] border border-border/80 bg-white p-4 text-center shadow-soft transition hover:border-orange/30 hover:shadow-lift",
