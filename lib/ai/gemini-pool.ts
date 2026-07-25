@@ -36,9 +36,9 @@ export type GeminiGenerateResult = {
 };
 
 const PRIMARY_MODEL =
-  process.env.GEMINI_PRIMARY_MODEL?.trim() || "gemini-2.5-flash";
+  process.env.GEMINI_PRIMARY_MODEL?.trim() || "gemini-3.1-flash";
 const FALLBACK_MODEL =
-  process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-2.0-flash-lite";
+  process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.1-flash-lite";
 const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 5000);
 const MAX_RETRIES = 2;
 const CACHE_TTL_MS = 30_000;
