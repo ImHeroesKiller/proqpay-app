@@ -101,13 +101,17 @@ Production-ready visual and AI experience upgrade. Business logic and database s
 
 ### Deployment URL
 
-- Target: Vercel project for ProQPay (e.g. `https://proqpay.msg-os.com` when production domain is bound)
-- Confirm latest deployment URL after `vercel deploy` / Git push CI
+- Production: https://proqpay.msg-os.com
+- Vercel alias: https://proqpay-app.vercel.app
+- Deployment: https://proqpay-j7qiyeqkx-im-heroes-killer-s-projects.vercel.app  
+  Status: **Ready** (production, 2026-07-25)
+- Commit: `1728afd` on `main`
 
 ### Lighthouse (target)
 
 - Performance / Accessibility / Best Practices / SEO: **95+** target on Dashboard (desktop)
 - Re-measure on production CDN after deploy (local Lighthouse varies by auth gate)
+- Login HTTP 200 verified on production aliases
 
 ### Notes
 
