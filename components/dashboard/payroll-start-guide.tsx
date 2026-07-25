@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -95,9 +97,8 @@ export function PayrollStartGuide({
           </Button>
           <button
             type="button"
-            onClick={undefined}
-            className="flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold text-navy"
-            data-ida-trigger="true"
+            onClick={() => window.dispatchEvent(new Event("open-ida"))}
+            className="flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold text-navy hover:border-blue-300 hover:bg-blue-50"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
             Tanya IDA
