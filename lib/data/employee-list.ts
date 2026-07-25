@@ -79,7 +79,9 @@ export async function getEmployeeListPage(
         select: { project: { select: { name: true, code: true } } },
       },
       payrollAssignments: {
-        ...assignmentArgs,
+        where: assignmentArgs.where,
+        orderBy: assignmentArgs.orderBy,
+        take: assignmentArgs.take,
         select: {
           id: true,
           payrollGroupId: true,
