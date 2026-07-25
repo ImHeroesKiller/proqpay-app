@@ -101,10 +101,15 @@ export async function saveMasterData(form: FormData) {
       const companyId = text(form, "companyId", 80); assertCompany(scope, companyId);
       const data = { companyId, code: text(form, "code", 50).toUpperCase(), name: text(form, "name"), isActive: bool(form, "isActive") };
       if (!data.code || !data.name) throw new Error("Kode dan nama wajib diisi.");
-      if (entity === "branch") id ? await prisma.branch.update({ where: { id }, data }) : await prisma.branch.create({ data });
-      else if (entity === "department") id ? await prisma.department.update({ where: { id }, data }) : await prisma.department.create({ data });
-      else if (entity === "position") id ? await prisma.position.update({ where: { id }, data }) : await prisma.position.create({ data });
-      else id ? await prisma.costCenter.update({ where: { id }, data }) : await prisma.costCenter.create({ data });
+      if (entity === "branch") {
+        if (id) await prisma.branch.update({ where: { id }, data }); else await prisma.branch.create({ data });
+      } else if (entity === "department") {
+        if (id) await prisma.department.update({ where: { id }, data }); else await prisma.department.create({ data });
+      } else if (entity === "position") {
+        if (id) await prisma.position.update({ where: { id }, data }); else await prisma.position.create({ data });
+      } else {
+        if (id) await prisma.costCenter.update({ where: { id }, data }); else await prisma.costCenter.create({ data });
+      }
     } else throw new Error("Jenis master data tidak dikenali.");
     await audit(scope, id ? "UPDATE" : "CREATE", entity, id ?? "new", `${id ? "Updated" : "Created"} ${entity}`);
     refresh(); done(entity, "success");
