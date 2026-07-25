@@ -51,16 +51,11 @@ This is **not** an HRIS, ERP, or accounting suite. It is an **Enterprise Payroll
 | Capital allocations | `/capital-allocations` | Internal commercial |
 | Roadmap | `/roadmap` | All |
 
-## Operator login
+## Access management
 
-Preserved operator accounts (password set by seed / environment — not shown in the production UI):
-
-| Email | Role |
-|-------|------|
-| siti.rahayu@msg-os.com | Payroll Admin |
-| budi.santoso@msg-os.com | Finance |
-| andi.wijaya@msg-os.com | Director |
-| admin@msg-os.com | Super Admin |
+Production credentials are never stored in the repository. Create and rotate
+operator passwords through the approved administrator process. Local seed data
+requires `SEED_DEMO_PASSWORD` or `OPERATOR_SEED_PASSWORD` with at least 16 characters.
 
 ## Development
 
