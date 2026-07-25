@@ -6,13 +6,13 @@ CREATE SCHEMA IF NOT EXISTS proqpay;
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- The production database predates this application layer. Bring existing tables
 -- forward additively before seed/data statements run.
-DO $ BEGIN
+DO $$ BEGIN
   ALTER TABLE proqpay.payroll_groups ADD COLUMN IF NOT EXISTS worker_type TEXT NOT NULL DEFAULT 'MONTHLY';
   ALTER TABLE proqpay.payroll_groups ADD COLUMN IF NOT EXISTS pay_cycle TEXT NOT NULL DEFAULT 'MONTHLY';
   ALTER TABLE proqpay.payroll_groups ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 EXCEPTION WHEN undefined_table THEN NULL;
-END $;
-DO $ BEGIN
+END $$;
+DO $$ BEGIN
   ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS description TEXT;
   ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS columns_json JSONB NOT NULL DEFAULT '[]'::jsonb;
   ALTER TABLE proqpay.import_templates ADD COLUMN IF NOT EXISTS entity_type TEXT;
@@ -22,8 +22,8 @@ DO $ BEGIN
   UPDATE proqpay.import_templates SET entity_type = COALESCE(entity_type, code);
   ALTER TABLE proqpay.import_templates ALTER COLUMN entity_type SET DEFAULT 'GENERIC';
 EXCEPTION WHEN undefined_table THEN NULL;
-END $;
-DO $ BEGIN
+END $$;
+DO $$ BEGIN
   ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS template_code TEXT;
   ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS template_version TEXT NOT NULL DEFAULT '1.0';
   ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS error_rows INT NOT NULL DEFAULT 0;
@@ -32,11 +32,11 @@ DO $ BEGIN
   ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS committed_by UUID;
   ALTER TABLE proqpay.import_batches ADD COLUMN IF NOT EXISTS error_summary TEXT;
 EXCEPTION WHEN undefined_table THEN NULL;
-END $;
-DO $ BEGIN
+END $$;
+DO $$ BEGIN
   ALTER TABLE proqpay.invoices ADD COLUMN IF NOT EXISTS management_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
 EXCEPTION WHEN undefined_table THEN NULL;
-END $;
+END $$;
 
 
 -- ─── Payroll groups ───────────────────────────────────────
