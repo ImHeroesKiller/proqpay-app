@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Bot, Sparkles } from "lucide-react";
 import { navigationByCategory } from "@/config/navigation";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/types";
+import type { ShellUser } from "@/components/layout/app-shell";
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export function Sidebar({
+  user,
+  onNavigate,
+}: {
+  user: ShellUser;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
-  const { data } = useSession();
-  const role = (data?.user?.role as Role) ?? "VIEWER";
-  const groups = navigationByCategory(role);
-  const user = data?.user;
+  const groups = navigationByCategory(user.role);
 
   return (
     <aside className="flex h-full w-[230px] flex-col bg-sidebar text-sidebar-foreground">
@@ -106,11 +108,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
         <div className="flex items-center gap-2.5 rounded-xl px-1 py-1">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-[11px] font-bold text-white">
-            {user?.avatarInitials ?? "U"}
+            {user.avatarInitials}
           </div>
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-[13px] font-semibold text-white/90">{user?.name ?? "User"}</p>
-            <p className="truncate text-[11px] text-white/45">{user?.role?.replaceAll("_", " ") ?? "—"}</p>
+            <p className="truncate text-[13px] font-semibold text-white/90">{user.name}</p>
+            <p className="truncate text-[11px] text-white/45">{user.role.replaceAll("_", " ")}</p>
           </div>
         </div>
       </div>
