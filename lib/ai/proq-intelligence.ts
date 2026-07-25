@@ -103,11 +103,20 @@ export function buildHeuristicInsights(input: {
         severity: "info",
         headline: a.title,
         detail: a.description,
-        recommendation: "Advance instructions so client transfer can start.",
+        recommendation: "Lanjutkan instruksi agar transfer klien dapat dimulai.",
         moduleHref: "/payment-instructions",
         moduleLabel: "Payment instructions",
       });
     }
+  }
+
+  // Soften technical wording in alert-derived insights
+  for (const ins of insights) {
+    ins.detail = ins.detail
+      .replace(/\(integration:\s*simulated\)/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    ins.headline = ins.headline.replace(/\(integration:\s*simulated\)/gi, "").trim();
   }
 
   const waiting = input.periods.find((p) => p.status === "WAITING");

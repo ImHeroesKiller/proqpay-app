@@ -5,8 +5,8 @@ import { motion } from "framer-motion";
 import {
   Wallet,
   CalendarCheck,
-  FileSpreadsheet,
   FileText,
+  FileSpreadsheet,
   GitBranch,
   BarChart3,
   type LucideIcon,
@@ -20,46 +20,46 @@ const actions: {
   tone: string;
 }[] = [
   {
-    label: "Run Payroll",
+    label: "Proses Payroll",
     href: "/payroll",
     icon: Wallet,
-    tone: "from-navy to-[#0b3a6e]",
+    tone: "bg-navy/10 text-navy",
   },
   {
-    label: "Import Attendance",
+    label: "Import Absensi",
     href: "/attendance",
     icon: CalendarCheck,
-    tone: "from-[#0b3a6e] to-[#1d4f8c]",
-  },
-  {
-    label: "Generate Invoice",
-    href: "/reports",
-    icon: FileSpreadsheet,
-    tone: "from-orange to-[#e07d1c]",
+    tone: "bg-sky-100 text-sky-700",
   },
   {
     label: "Payment Instruction",
     href: "/payment-instructions",
     icon: FileText,
-    tone: "from-emerald-700 to-emerald-600",
+    tone: "bg-emerald-100 text-emerald-700",
   },
   {
-    label: "Approval",
+    label: "Invoice Baru",
+    href: "/reports",
+    icon: FileSpreadsheet,
+    tone: "bg-orange/15 text-orange",
+  },
+  {
+    label: "Daftar Approval",
     href: "/approval",
     icon: GitBranch,
-    tone: "from-violet-700 to-violet-600",
+    tone: "bg-violet-100 text-violet-700",
   },
   {
-    label: "Reports",
+    label: "Laporan Payroll",
     href: "/reports",
     icon: BarChart3,
-    tone: "from-slate-700 to-slate-600",
+    tone: "bg-slate-100 text-slate-700",
   },
 ];
 
 export function QuickActions() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {actions.map((action, index) => {
         const Icon = action.icon;
         return (
@@ -68,23 +68,23 @@ export function QuickActions() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 * index }}
-            whileHover={{ y: -4 }}
+            whileHover={{ y: -3 }}
           >
             <Link
               href={action.href}
               className={cn(
-                "group flex h-full flex-col items-center justify-center gap-3 rounded-[var(--radius)] border border-border/60 bg-card/80 p-4 text-center shadow-soft backdrop-blur transition hover:border-orange/30 hover:shadow-lift",
+                "group flex h-full flex-col items-center justify-center gap-3 rounded-[18px] border border-border/80 bg-white p-4 text-center shadow-soft transition hover:border-orange/30 hover:shadow-lift",
               )}
             >
               <span
                 className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-soft transition group-hover:scale-105",
+                  "flex h-12 w-12 items-center justify-center rounded-2xl transition group-hover:scale-105",
                   action.tone,
                 )}
               >
                 <Icon className="h-5 w-5" strokeWidth={1.85} />
               </span>
-              <span className="text-xs font-semibold leading-tight">
+              <span className="text-sm font-semibold leading-tight text-navy">
                 {action.label}
               </span>
             </Link>

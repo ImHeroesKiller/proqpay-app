@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  /* Surfaces — warm white enterprise */
-  --background: #f7f5f2;
+  /* Surfaces — light enterprise SaaS */
+  --background: #f7f8fc;
   --foreground: #0b1f33;
-  --card: rgba(255, 255, 255, 0.78);
+  --card: #ffffff;
   --card-solid: #ffffff;
   --card-foreground: #0b1f33;
 
   /* Brand */
   --primary: #0b1f33;
   --primary-foreground: #ffffff;
-  --secondary: #ebe7e1;
+  --secondary: #eef1f8;
   --secondary-foreground: #0b1f33;
-  --muted: #f0ece6;
+  --muted: #eef1f8;
   --muted-foreground: #64748b;
   --accent: #f28c28;
   --accent-foreground: #ffffff;
@@ -26,8 +26,8 @@
   --info: #0284c7;
 
   /* Chrome */
-  --border: #e5e0d8;
-  --input: #e5e0d8;
+  --border: #e4e7ef;
+  --input: #e4e7ef;
   --ring: #0b3a6e;
   --msg-blue: #0b3a6e;
   --navy: #0b1f33;
@@ -37,7 +37,7 @@
   --sidebar-foreground: #e8eef5;
   --sidebar-muted: rgba(255, 255, 255, 0.45);
   --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --sidebar-active: rgba(242, 140, 40, 0.18);
+  --sidebar-active: linear-gradient(90deg, #2563eb, #4f46e5);
 
   /* Elevation */
   --radius: 1.25rem; /* 20px */
@@ -136,29 +136,8 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(
-        ellipse 80% 50% at 50% -20%,
-        rgba(11, 58, 110, 0.06),
-        transparent
-      ),
-      radial-gradient(
-        ellipse 60% 40% at 100% 0%,
-        rgba(242, 140, 40, 0.04),
-        transparent
-      );
+    font-size: 14px;
     min-height: 100vh;
-  }
-  .dark body {
-    background-image: radial-gradient(
-        ellipse 80% 50% at 50% -20%,
-        rgba(11, 58, 110, 0.25),
-        transparent
-      ),
-      radial-gradient(
-        ellipse 60% 40% at 100% 0%,
-        rgba(242, 140, 40, 0.08),
-        transparent
-      );
   }
   :focus-visible {
     @apply outline-none ring-2 ring-ring/60 ring-offset-2 ring-offset-background;
@@ -173,11 +152,9 @@
     font-family: var(--font-display);
   }
   .glass-card {
-    background: var(--glass);
-    backdrop-filter: blur(16px) saturate(1.2);
-    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    background: var(--card-solid);
     box-shadow: var(--shadow-soft);
-    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    border: 1px solid var(--border);
   }
   .shadow-soft {
     box-shadow: var(--shadow-soft);

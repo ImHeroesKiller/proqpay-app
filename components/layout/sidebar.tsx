@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { navigationByCategory, roadmapNav } from "@/config/navigation";
+import { Sparkles } from "lucide-react";
+import { navigationByCategory } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types";
 
@@ -13,125 +14,119 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { data } = useSession();
   const role = (data?.user?.role as Role) ?? "VIEWER";
   const groups = navigationByCategory(role);
+  const user = data?.user;
 
   return (
-    <aside className="flex h-full w-[17.5rem] flex-col bg-sidebar text-sidebar-foreground">
+    <aside className="flex h-full w-[230px] flex-col bg-sidebar text-sidebar-foreground">
       <div className="border-b border-white/10 px-5 py-5">
         <Link href="/dashboard" onClick={onNavigate} className="group block">
-          <div className="font-display text-lg font-bold tracking-tight">
+          <div className="font-display text-xl font-bold tracking-tight">
             Pro
             <span className="text-orange transition group-hover:text-[#ffb35c]">
               Q
             </span>
             Pay
           </div>
-          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
-            Payroll Operating System
+          <p className="mt-1 text-[11px] font-medium leading-snug text-white/50">
+            Enterprise Payroll OS
           </p>
         </Link>
       </div>
 
       <nav
-        className="flex-1 space-y-5 overflow-y-auto px-3 py-4 scrollbar-thin"
+        className="flex-1 space-y-6 overflow-y-auto px-3 py-5 scrollbar-thin"
         aria-label="Primary"
       >
-        {groups.map(({ category, items }) => {
-          const CatIcon = category.icon;
-          return (
-            <div key={category.id}>
-              <div className="mb-1.5 flex items-center gap-2 px-3">
-                <CatIcon className="h-3 w-3 text-orange/80" strokeWidth={2.25} />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
-                  {category.label}
-                </span>
-              </div>
-              <div className="space-y-0.5">
-                {items.map((item) => {
-                  const active =
-                    pathname === item.href ||
-                    pathname.startsWith(`${item.href}/`);
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onNavigate}
+        {groups.map(({ category, items }) => (
+          <div key={category.id}>
+            <div className="mb-2.5 px-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
+                {category.label}
+              </span>
+            </div>
+            <div className="space-y-1">
+              {items.map((item) => {
+                const active =
+                  pathname === item.href ||
+                  (item.href !== "/dashboard" &&
+                    pathname.startsWith(`${item.href}/`)) ||
+                  (item.href === "/dashboard" && pathname === "/dashboard");
+                // Prefer exact title match when multiple items share href
+                const exactActive =
+                  active &&
+                  (items.filter((i) => i.href === item.href).length === 1 ||
+                    pathname === item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={`${item.href}-${item.title}`}
+                    href={item.href}
+                    onClick={onNavigate}
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all duration-200",
+                      exactActive
+                        ? "text-white"
+                        : "text-white/65 hover:bg-white/[0.06] hover:text-white",
+                    )}
+                  >
+                    {exactActive ? (
+                      <motion.span
+                        layoutId="nav-pill"
+                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-900/30"
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 32,
+                        }}
+                      />
+                    ) : null}
+                    <span
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                        active
-                          ? "bg-[var(--sidebar-active)] text-white shadow-soft"
-                          : "text-white/65 hover:bg-[var(--sidebar-hover)] hover:text-white",
+                        "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                        exactActive
+                          ? "bg-white/15 text-white"
+                          : "bg-white/5 text-white/70 group-hover:bg-white/10 group-hover:text-white",
                       )}
                     >
-                      {active ? (
-                        <motion.span
-                          layoutId="nav-pill"
-                          className="absolute inset-0 rounded-2xl ring-1 ring-orange/35"
-                          transition={{
-                            type: "spring",
-                            stiffness: 380,
-                            damping: 32,
-                          }}
-                        />
-                      ) : null}
-                      <span
-                        className={cn(
-                          "relative flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200",
-                          active
-                            ? "bg-orange/20 text-orange"
-                            : "bg-white/5 text-white/70 group-hover:bg-white/10 group-hover:text-white group-hover:scale-105",
-                        )}
-                      >
-                        <Icon className="h-4 w-4" strokeWidth={1.85} />
-                      </span>
-                      <span className="relative truncate">{item.title}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+                      <Icon className="h-4 w-4" strokeWidth={1.85} />
+                    </span>
+                    <span className="relative truncate">{item.title}</span>
+                  </Link>
+                );
+              })}
             </div>
-          );
-        })}
-
-        <div>
-          <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
-            Future
           </div>
-          {roadmapNav.map((item) => {
-            const active = pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition",
-                  active
-                    ? "bg-[var(--sidebar-active)] text-white"
-                    : "text-white/65 hover:bg-[var(--sidebar-hover)] hover:text-white",
-                )}
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/5">
-                  <Icon className="h-4 w-4" strokeWidth={1.85} />
-                </span>
-                {item.title}
-              </Link>
-            );
-          })}
-        </div>
+        ))}
       </nav>
 
-      <div className="border-t border-white/10 p-4">
-        <div className="rounded-2xl bg-white/5 px-3 py-2.5">
-          <p className="text-[11px] font-semibold text-white/80">ProQ AI online</p>
-          <p className="mt-0.5 text-[10px] text-white/40">
-            Gemini worker pool · failover ready
-          </p>
+      <div className="space-y-3 border-t border-white/10 p-4">
+        <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange/20 text-orange">
+              <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-white/90">
+                ProQ AI Assistant
+              </p>
+              <p className="text-[10px] text-white/45">Siap membantu</p>
+            </div>
+          </div>
         </div>
-        <p className="mt-3 text-[10px] text-white/35">
-          Enterprise Payroll OS · MSG Technology
-        </p>
+
+        <div className="flex items-center gap-2.5 rounded-xl px-1 py-1">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-[11px] font-bold text-white">
+            {user?.avatarInitials ?? "U"}
+          </div>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-[13px] font-semibold text-white/90">
+              {user?.name ?? "User"}
+            </p>
+            <p className="truncate text-[11px] text-white/45">
+              {user?.role?.replaceAll("_", " ") ?? "—"}
+            </p>
+          </div>
+        </div>
       </div>
     </aside>
   );

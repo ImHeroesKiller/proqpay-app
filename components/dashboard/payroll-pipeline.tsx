@@ -2,13 +2,13 @@
 
 import { motion } from "framer-motion";
 import {
-  CalendarCheck,
+  Database,
   ShieldCheck,
   Calculator,
   GitBranch,
-  FileText,
-  ClipboardCheck,
+  Banknote,
   PartyPopper,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,79 +24,103 @@ export type {
 } from "@/lib/domain/payroll-pipeline";
 
 const ICONS: Record<PipelineIconKey, LucideIcon> = {
-  attendance: CalendarCheck,
+  attendance: Database,
   validation: ShieldCheck,
   calculation: Calculator,
   approval: GitBranch,
-  instruction: FileText,
-  confirmation: ClipboardCheck,
+  instruction: Banknote,
+  confirmation: Banknote,
+  payment: Banknote,
   completed: PartyPopper,
 };
 
 export function PayrollPipeline({ stages }: { stages: PipelineStage[] }) {
   return (
     <div className="w-full overflow-x-auto pb-1">
-      <ol className="flex min-w-[720px] items-stretch gap-0" aria-label="Payroll pipeline">
+      <ol
+        className="flex min-w-[860px] items-stretch gap-0 px-1"
+        aria-label="Progress payroll"
+      >
         {stages.map((stage, index) => {
-          const Icon = ICONS[stage.iconKey] ?? FileText;
+          const Icon = ICONS[stage.iconKey] ?? Database;
           const isLast = index === stages.length - 1;
+          const percent = stage.percent ?? 0;
+
           return (
-            <li key={stage.key} className="relative flex flex-1 flex-col items-center">
+            <li
+              key={stage.key}
+              className="relative flex flex-1 flex-col items-center"
+            >
               {!isLast ? (
                 <div
-                  className={cn(
-                    "absolute left-[calc(50%+22px)] right-[calc(-50%+22px)] top-5 h-0.5",
-                    stage.status === "done" || stage.status === "current"
-                      ? "bg-gradient-to-r from-orange/80 to-orange/30"
-                      : "bg-border",
-                  )}
+                  className="absolute left-[calc(50%+28px)] right-[calc(-50%+28px)] top-7 flex items-center"
                   aria-hidden
-                />
+                >
+                  <div
+                    className={cn(
+                      "h-1 flex-1 rounded-full",
+                      stage.status === "done"
+                        ? "bg-emerald-400"
+                        : stage.status === "current" ||
+                            stage.status === "warning"
+                          ? "bg-gradient-to-r from-orange/80 to-border"
+                          : "bg-border",
+                    )}
+                  />
+                  <ChevronRight
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      stage.status === "done"
+                        ? "text-emerald-500"
+                        : "text-muted-foreground/50",
+                    )}
+                  />
+                </div>
               ) : null}
+
               <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.06 }}
                 title={stage.tooltip}
-                className={cn(
-                  "group relative z-10 flex w-full flex-col items-center gap-2 px-1",
-                )}
+                className="group relative z-10 flex w-full flex-col items-center gap-2.5 px-2"
               >
                 <div
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-2xl border shadow-soft transition-all duration-200 group-hover:scale-110 group-hover:shadow-lift",
+                    "flex h-14 w-14 items-center justify-center rounded-full border-2 shadow-soft transition-all duration-200 group-hover:scale-105 group-hover:shadow-lift",
                     stage.status === "done" &&
-                      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300",
+                      "border-emerald-300 bg-emerald-50 text-emerald-700",
                     stage.status === "current" &&
-                      "border-orange/40 bg-orange/15 text-orange ring-4 ring-orange/10",
+                      "border-orange bg-orange/10 text-orange ring-4 ring-orange/15",
                     stage.status === "upcoming" &&
-                      "border-border bg-card text-muted-foreground",
+                      "border-border bg-white text-muted-foreground",
                     stage.status === "warning" &&
-                      "border-amber-300 bg-amber-50 text-amber-700 ring-4 ring-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
+                      "border-amber-400 bg-amber-50 text-amber-700 ring-4 ring-amber-100",
                     stage.status === "critical" &&
-                      "border-red-300 bg-red-50 text-red-700 ring-4 ring-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-300",
+                      "border-red-400 bg-red-50 text-red-700 ring-4 ring-red-100",
                   )}
                 >
-                  <Icon className="h-4 w-4" strokeWidth={1.85} />
+                  <Icon className="h-6 w-6" strokeWidth={1.85} />
                 </div>
                 <div className="text-center">
-                  <p className="text-[11px] font-semibold leading-tight text-foreground">
+                  <p className="text-sm font-semibold leading-tight text-navy">
                     {stage.label}
                   </p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">
-                    {stage.status === "done"
-                      ? stage.completedAt ?? "Done"
-                      : stage.status === "current"
-                        ? "In progress"
-                        : stage.status === "warning"
-                          ? "Needs attention"
-                          : stage.status === "critical"
-                            ? "Critical"
-                            : "Queued"}
+                  <p
+                    className={cn(
+                      "mt-1 font-display text-xl font-bold tabular-nums",
+                      stage.status === "done" && "text-emerald-600",
+                      stage.status === "current" && "text-orange",
+                      stage.status === "upcoming" && "text-muted-foreground",
+                      stage.status === "warning" && "text-amber-600",
+                      stage.status === "critical" && "text-red-600",
+                    )}
+                  >
+                    {percent}%
                   </p>
-                  {stage.owner ? (
-                    <p className="mt-0.5 text-[10px] text-muted-foreground/80">
-                      {stage.owner}
+                  {stage.countLabel ? (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {stage.countLabel}
                     </p>
                   ) : null}
                 </div>

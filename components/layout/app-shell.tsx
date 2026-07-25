@@ -9,8 +9,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:w-[17.5rem]">
+    <div className="flex min-h-screen bg-[#F7F8FC]">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:w-[230px]">
         <Sidebar />
       </div>
 
@@ -22,15 +22,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Close menu"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-[17.5rem] shadow-lift">
+          <div className="absolute inset-y-0 left-0 w-[230px] shadow-lift">
             <Sidebar onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>
       ) : null}
 
-      <div className={cn("flex min-h-screen flex-1 flex-col lg:pl-[17.5rem]")}>
+      <div className={cn("flex min-h-screen flex-1 flex-col lg:pl-[230px]")}>
         <Topbar onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-5 sm:px-6 lg:px-8">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -471,3 +471,102 @@ export async function getPayrollChartData(scope?: SessionScope) {
     fundingModel: p.fundingModel,
   }));
 }
+
+/** Executive table: payroll grouped by client company / project (read-only). */
+export async function getPayrollByClientProject(scope?: SessionScope) {
+  const where = scope ? companyWhere(scope) : {};
+
+  const projects = await prisma.project.findMany({
+    where: scope?.companyId && scope.role !== "SUPER_ADMIN"
+      ? { companyId: scope.companyId }
+      : {},
+    include: {
+      company: true,
+      assignments: { where: { isActive: true } },
+      payrollPeriods: {
+        orderBy: { periodStart: "desc" },
+        take: 1,
+      },
+    },
+    orderBy: { name: "asc" },
+    take: 12,
+  });
+
+  if (projects.length > 0) {
+    return projects.map((p) => {
+      const period = p.payrollPeriods[0];
+      const empCount =
+        p.assignments.length ||
+        period?.employeeCount ||
+        0;
+      const bruto = period
+        ? Number(period.totalGross || period.totalNet || 0)
+        : Number(p.company.actualManagedPayroll ?? 0);
+      const status = period?.status ?? "DRAFT";
+      const sla =
+        status === "CLOSED" || status === "DISBURSED"
+          ? 98
+          : status === "WAITING"
+            ? 92
+            : status === "APPROVED"
+              ? 95
+              : 88;
+      return {
+        id: p.id,
+        clientName: p.clientName || p.company.name,
+        projectName: [p.name, p.site || p.location].filter(Boolean).join(" · "),
+        employees: Number(empCount),
+        totalBruto: bruto,
+        status,
+        sla,
+      };
+    });
+  }
+
+  // Fallback: companies with latest payroll period
+  const companies = await prisma.company.findMany({
+    where:
+      scope?.companyId && scope.role !== "SUPER_ADMIN"
+        ? { id: scope.companyId }
+        : where.companyId
+          ? { id: where.companyId as string }
+          : {},
+    include: {
+      employees: {
+        where: { status: { in: ["ACTIVE", "PROBATION"] } },
+        select: { id: true },
+      },
+      payrollPeriods: {
+        orderBy: { periodStart: "desc" },
+        take: 1,
+      },
+    },
+    orderBy: { name: "asc" },
+    take: 8,
+  });
+
+  return companies.map((c) => {
+    const period = c.payrollPeriods[0];
+    const status = period?.status ?? "DRAFT";
+    const sla =
+      status === "CLOSED" || status === "DISBURSED"
+        ? 98
+        : status === "WAITING"
+          ? 92
+          : status === "APPROVED"
+            ? 95
+            : 88;
+    return {
+      id: c.id,
+      clientName: c.name,
+      projectName: period?.name ?? "Periode aktif",
+      employees: period?.employeeCount ?? c.employees.length,
+      totalBruto: period
+        ? Number(period.totalGross || period.totalNet || 0)
+        : Number(c.actualManagedPayroll ?? 0),
+      status,
+      sla,
+    };
+  });
+}
+

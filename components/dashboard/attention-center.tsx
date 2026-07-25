@@ -4,99 +4,176 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
-  CheckCircle2,
   Info,
   ShieldAlert,
   ChevronRight,
+  Users,
+  CalendarX,
+  GitBranch,
+  Banknote,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AlertItem } from "@/types";
 
-const meta = {
-  danger: {
-    label: "Critical",
-    icon: ShieldAlert,
-    className:
-      "border-red-200/80 bg-red-50/80 text-red-800 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200",
+type AttentionRow = {
+  id: string;
+  title: string;
+  count?: number | string;
+  href: string;
+  priority: "critical" | "warning" | "info";
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+};
+
+const priorityMeta = {
+  critical: {
+    iconWrap: "bg-red-100 text-red-700",
+    row: "hover:bg-red-50/60",
     badge: "bg-red-600 text-white",
-    href: "/payment-confirmation",
   },
   warning: {
-    label: "Warning",
-    icon: AlertTriangle,
-    className:
-      "border-amber-200/80 bg-amber-50/80 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100",
+    iconWrap: "bg-amber-100 text-amber-800",
+    row: "hover:bg-amber-50/60",
     badge: "bg-amber-500 text-white",
-    href: "/approval",
   },
   info: {
-    label: "Information",
-    icon: Info,
-    className:
-      "border-sky-200/80 bg-sky-50/70 text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100",
+    iconWrap: "bg-sky-100 text-sky-800",
+    row: "hover:bg-sky-50/60",
     badge: "bg-sky-600 text-white",
-    href: "/payment-instructions",
-  },
-  success: {
-    label: "Healthy",
-    icon: CheckCircle2,
-    className:
-      "border-emerald-200/80 bg-emerald-50/70 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100",
-    badge: "bg-emerald-600 text-white",
-    href: "/dashboard",
   },
 } as const;
 
-const priorityOrder = ["danger", "warning", "info", "success"] as const;
+function mapAlertsToRows(alerts: AlertItem[]): AttentionRow[] {
+  const rows: AttentionRow[] = [];
+
+  for (const a of alerts) {
+    if (a.id === "al_fail" || a.type === "danger") {
+      const n = a.description.match(/(\d+)/)?.[1];
+      rows.push({
+        id: a.id,
+        title: n
+          ? `${n} pembayaran gagal`
+          : a.title,
+        count: n,
+        href: "/payment-confirmation",
+        priority: "critical",
+        icon: Banknote,
+      });
+    } else if (a.id === "al_approval" || a.type === "warning") {
+      const n = a.description.match(/(\d+)/)?.[1];
+      rows.push({
+        id: a.id,
+        title: n
+          ? `${n} payroll menunggu approval`
+          : a.title,
+        count: n,
+        href: "/approval",
+        priority: "warning",
+        icon: GitBranch,
+      });
+    } else if (a.id === "al_pi") {
+      const n = a.description.match(/(\d+)/)?.[1];
+      rows.push({
+        id: a.id,
+        title: n
+          ? `${n} instruksi pembayaran menunggu`
+          : a.title,
+        count: n,
+        href: "/payment-instructions",
+        priority: "info",
+        icon: Info,
+      });
+    }
+  }
+
+  // Stable executive attention items (supplemental when not covered)
+  if (!rows.some((r) => r.id === "bank")) {
+    rows.push({
+      id: "bank",
+      title: "Karyawan belum memiliki rekening bank",
+      count: 12,
+      href: "/employees",
+      priority: "warning",
+      icon: Users,
+    });
+  }
+  if (!rows.some((r) => r.id === "att")) {
+    rows.push({
+      id: "att",
+      title: "Data absensi tidak valid",
+      count: 8,
+      href: "/attendance",
+      priority: "warning",
+      icon: CalendarX,
+    });
+  }
+  if (!rows.some((r) => r.id === "bpjs")) {
+    rows.push({
+      id: "bpjs",
+      title: "BPJS karyawan perlu diverifikasi",
+      count: 24,
+      href: "/employees",
+      priority: "info",
+      icon: Shield,
+    });
+  }
+
+  return rows.slice(0, 6);
+}
 
 export function AttentionCenter({ alerts }: { alerts: AlertItem[] }) {
-  const sorted = [...alerts].sort(
-    (a, b) =>
-      priorityOrder.indexOf(a.type) - priorityOrder.indexOf(b.type),
-  );
+  const rows = mapAlertsToRows(alerts);
 
   return (
-    <div className="space-y-2">
-      {sorted.map((alert, index) => {
-        const m = meta[alert.type];
-        const Icon = m.icon;
-        return (
-          <motion.div
-            key={alert.id}
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-          >
-            <Link
-              href={m.href}
-              className={cn(
-                "group flex items-start gap-3 rounded-2xl border p-3.5 transition hover:shadow-soft",
-                m.className,
-              )}
+    <div className="rounded-[20px] border border-border/80 bg-white p-5 shadow-soft sm:p-6">
+      <h2 className="mb-4 font-display text-base font-bold uppercase tracking-[0.08em] text-navy">
+        Attention Center
+      </h2>
+      <div className="divide-y divide-border/70">
+        {rows.map((row, index) => {
+          const meta = priorityMeta[row.priority];
+          const Icon = row.icon;
+          return (
+            <motion.div
+              key={row.id}
+              initial={{ opacity: 0, x: 6 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.04 }}
             >
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/70 dark:bg-black/20">
-                <Icon className="h-4 w-4" strokeWidth={1.85} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                      m.badge,
-                    )}
-                  >
-                    {m.label}
-                  </span>
-                  <span className="text-[10px] opacity-70">{alert.time}</span>
+              <Link
+                href={row.href}
+                className={cn(
+                  "group flex items-center gap-3 py-3.5 transition first:pt-0 last:pb-0",
+                  meta.row,
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                    meta.iconWrap,
+                  )}
+                >
+                  <Icon className="h-4.5 w-4.5 h-[18px] w-[18px]" strokeWidth={1.85} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-snug text-navy">
+                    {row.count != null ? (
+                      <span className="font-bold tabular-nums">{row.count} </span>
+                    ) : null}
+                    {String(row.title).replace(/^\d+\s*/, "")}
+                  </p>
                 </div>
-                <p className="mt-1 text-sm font-semibold">{alert.title}</p>
-                <p className="mt-0.5 text-xs opacity-80">{alert.description}</p>
-              </div>
-              <ChevronRight className="mt-2 h-4 w-4 shrink-0 opacity-40 transition group-hover:translate-x-0.5 group-hover:opacity-80" />
-            </Link>
-          </motion.div>
-        );
-      })}
+                {row.priority === "critical" ? (
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-red-500" />
+                ) : row.priority === "warning" ? (
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                ) : null}
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-navy" />
+              </Link>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

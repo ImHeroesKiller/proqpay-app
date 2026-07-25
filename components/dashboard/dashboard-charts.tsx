@@ -9,7 +9,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatRupiah } from "@/lib/utils";
 
 type Point = { month: string; amount: number };
 
@@ -19,38 +18,46 @@ export function DashboardCharts({ data }: { data: Point[] }) {
       <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="payrollFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0B3A6E" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="#0B3A6E" stopOpacity={0.02} />
+            <stop offset="0%" stopColor="#2563eb" stopOpacity={0.28} />
+            <stop offset="100%" stopColor="#2563eb" stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" />
+        <CartesianGrid
+          strokeDasharray="4 4"
+          vertical={false}
+          stroke="#e4e7ef"
+        />
         <XAxis
           dataKey="month"
           tickLine={false}
           axisLine={false}
-          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+          tick={{ fill: "#64748b", fontSize: 12 }}
         />
         <YAxis
           tickLine={false}
           axisLine={false}
-          tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-          width={40}
+          tick={{ fill: "#64748b", fontSize: 12 }}
+          width={44}
+          tickFormatter={(v) => `${v}`}
         />
         <Tooltip
           cursor={{ stroke: "#f28c28", strokeWidth: 1, strokeDasharray: "4 4" }}
           contentStyle={{
             borderRadius: 16,
-            border: "1px solid var(--border)",
-            background: "var(--card-solid)",
-            boxShadow: "var(--shadow-soft)",
-            fontSize: 12,
+            border: "1px solid #e4e7ef",
+            background: "#ffffff",
+            boxShadow: "0 8px 24px rgba(11, 31, 51, 0.08)",
+            fontSize: 13,
           }}
-          formatter={(value) => formatRupiah(Number(value) * 1_000_000)}
+          formatter={(value) => [
+            `Rp ${Number(value).toLocaleString("id-ID", { maximumFractionDigits: 2 })} M`,
+            "Payroll",
+          ]}
         />
         <Area
           type="monotone"
           dataKey="amount"
-          stroke="#0B3A6E"
+          stroke="#2563eb"
           strokeWidth={2.5}
           fill="url(#payrollFill)"
           animationDuration={900}
