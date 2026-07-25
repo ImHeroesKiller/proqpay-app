@@ -43,7 +43,9 @@ export async function createDraftInvoiceFromPayroll(periodId: string, management
   await prisma.invoice.create({
     data: {
       id,
+      organizationId: period.company.organizationId,
       companyId: period.companyId,
+      clientId: period.companyId,
       payrollPeriodId: periodId,
       invoiceNumber,
       status: "DRAFT",
