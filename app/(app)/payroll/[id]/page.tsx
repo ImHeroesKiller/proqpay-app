@@ -62,7 +62,7 @@ export default async function PayrollDetailPage({
         <PayrollPeriodActions
           periodId={period.id}
           status={period.status}
-          companyId={period.companyId}
+          companyId={period.companyId ?? ""}
         />
       </div>
 

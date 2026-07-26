@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/db";
 
-function csvCell(value: unknown, delimiter: string) {
+function csvCell(value: unknown) {
   const text = String(value ?? "");
   return /[",;\r\n]/.test(text)
     ? `"${text.replaceAll('"', '""')}"`
@@ -71,9 +71,9 @@ export async function buildBankInstructionFile(instructionId: string) {
 
   const delimiter = template.delimiter || ",";
   const content = [
-    columns.map((value) => csvCell(value, delimiter)).join(delimiter),
+    columns.map((value) => csvCell(value)).join(delimiter),
     ...rows.map((row) =>
-      row.map((value) => csvCell(value, delimiter)).join(delimiter),
+      row.map((value) => csvCell(value)).join(delimiter),
     ),
   ].join("\r\n");
   return {
