@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import {
   Menu,
@@ -30,7 +30,11 @@ export function Topbar({
   user: ShellUser;
   onMenuClick?: () => void;
 }) {
-  const greet = useMemo(() => greetingPrefix(), []);
+  const [greet, setGreet] = useState("Selamat datang");
+
+  useEffect(() => {
+    setGreet(greetingPrefix());
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/80 bg-white">
