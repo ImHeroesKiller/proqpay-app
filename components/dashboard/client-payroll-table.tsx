@@ -32,14 +32,21 @@ function mapStatus(raw: string): string {
     ].includes(s)
   )
     return "Pembayaran";
-  if (["WAITING", "APPROVED"].includes(s) && s === "APPROVED") return "Approval";
+  if (["WAITING", "APPROVED"].includes(s) && s === "APPROVED")
+    return "Approval";
   if (s === "WAITING") return "Kalkulasi";
   if (s === "DRAFT") return "Validasi";
   if (s.includes("APPROV") || s === "LOCKED") return "Approval";
   return "Validasi";
 }
 
-export function ClientPayrollTable({ rows }: { rows: ClientPayrollRow[] }) {
+export function ClientPayrollTable({
+  rows,
+  maxRows,
+}: {
+  rows: ClientPayrollRow[];
+  maxRows?: number;
+}) {
   if (rows.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
@@ -61,7 +68,7 @@ export function ClientPayrollTable({ rows }: { rows: ClientPayrollRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {rows.slice(0, maxRows).map((row) => {
             const status = mapStatus(row.status);
             return (
               <tr

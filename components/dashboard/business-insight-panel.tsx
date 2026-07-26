@@ -75,7 +75,7 @@ export function BusinessInsightPanel({
   return (
     <section
       id="business-insight"
-      className="relative flex h-full min-h-[610px] flex-col overflow-hidden rounded-[22px] border border-violet-300/70 bg-[radial-gradient(circle_at_75%_10%,rgba(102,75,255,.6),transparent_28%),linear-gradient(160deg,#071542_0%,#10145d_48%,#062967_100%)] p-5 text-white shadow-[0_10px_30px_rgba(56,39,180,.28)]"
+      className="relative flex h-full min-h-[472px] flex-col overflow-hidden rounded-[22px] border border-violet-300/70 bg-[radial-gradient(circle_at_75%_10%,rgba(102,75,255,.6),transparent_28%),linear-gradient(160deg,#071542_0%,#10145d_48%,#062967_100%)] p-5 text-white shadow-[0_10px_30px_rgba(56,39,180,.28)]"
       aria-label="IDA Intelligent Digital Assistant"
     >
       <div className="absolute inset-x-5 top-0 h-px bg-violet-200/80 shadow-[0_0_14px_5px_rgba(196,158,255,.85)]" />
@@ -96,11 +96,11 @@ export function BusinessInsightPanel({
           <Loader2 className="h-4 w-4 animate-spin text-white/70" />
         ) : null}
       </div>
-      <div className="relative mt-4 flex min-h-[185px] items-end justify-center overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_90%,rgba(109,86,255,.6),transparent_45%)]">
+      <div className="relative mt-3 flex min-h-[145px] items-end justify-center overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_90%,rgba(109,86,255,.6),transparent_45%)]">
         <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49%,rgba(255,255,255,.16)_50%,transparent_51%),linear-gradient(transparent_49%,rgba(255,255,255,.1)_50%,transparent_51%)] bg-[size:38px_38px] opacity-30" />
         <ProQAvatar
           state={avatarState}
-          size={178}
+          size={142}
           className="relative translate-y-7 border-2 border-white/25 shadow-[0_0_38px_rgba(182,138,255,.65)]"
         />
       </div>
