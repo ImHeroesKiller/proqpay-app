@@ -826,6 +826,46 @@ model PayrollLine {
   @@schema("proqpay")
 }
 
+model PayrollValidationIssue {
+  id              String         @id @default(uuid()) @db.Uuid
+  payrollPeriodId String         @map("payroll_period_id") @db.Uuid
+  payrollLineId   String?        @map("payroll_line_id") @db.Uuid
+  employeeId      String?        @map("employee_id") @db.Uuid
+  severity        String         @default("WARNING")
+  code            String
+  message         String
+  status          String         @default("OPEN")
+  resolvedBy      String?        @map("resolved_by") @db.Uuid
+  resolvedAt      DateTime?      @map("resolved_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  payrollPeriod   PayrollPeriod  @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+
+  @@index([payrollPeriodId])
+  @@index([status])
+  @@map("payroll_validation_issues")
+  @@schema("proqpay")
+}
+
+model Payslip {
+  id              String        @id @default(uuid()) @db.Uuid
+  payrollPeriodId String        @map("payroll_period_id") @db.Uuid
+  payrollLineId   String?       @map("payroll_line_id") @db.Uuid
+  employeeId      String        @map("employee_id") @db.Uuid
+  payslipNumber   String        @map("payslip_number")
+  payloadJson     Json          @default("{}") @map("payload_json")
+  issuedAt        DateTime?     @map("issued_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  payrollPeriod   PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollPeriodId, employeeId])
+  @@index([employeeId])
+  @@map("payslips")
+  @@schema("proqpay")
+}
+
 model ApprovalStep {
   id              String         @id @default(uuid()) @db.Uuid
   payrollPeriodId String         @map("payroll_period_id") @db.Uuid
