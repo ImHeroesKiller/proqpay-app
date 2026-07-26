@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Info,
@@ -134,7 +131,7 @@ export function AttentionCenter({ alerts }: { alerts: AlertItem[] }) {
           const meta = priorityMeta[row.priority];
           const Icon = row.icon;
           return (
-            <motion.div
+            <div
               key={row.id}
               initial={{ opacity: 0, x: 6 }}
               animate={{ opacity: 1, x: 0 }}
@@ -170,7 +167,7 @@ export function AttentionCenter({ alerts }: { alerts: AlertItem[] }) {
                 ) : null}
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-navy" />
               </Link>
-            </motion.div>
+            </div>
           );
         })}
       </div>
