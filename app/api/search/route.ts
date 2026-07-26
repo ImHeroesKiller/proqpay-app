@@ -16,8 +16,8 @@ export async function GET(request: Request) {
       select: { id: true, name: true, employeeCode: true }, take: 5,
     }),
     prisma.payrollPeriod.findMany({
-      where: { ...companyFilter, periodCode: contains },
-      select: { id: true, periodCode: true }, take: 5,
+      where: { ...companyFilter, name: contains },
+      select: { id: true, name: true }, take: 5,
     }),
     prisma.invoice.findMany({
       where: { ...companyFilter, invoiceNumber: contains },
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     results: [
       ...employees.map((item) => ({ id: item.id, label: item.name, detail: `Karyawan · ${item.employeeCode}`, href: `/employees/${item.id}` })),
-      ...periods.map((item) => ({ id: item.id, label: item.periodCode, detail: `Payroll · ${item.periodCode}`, href: `/payroll/${item.id}` })),
+      ...periods.map((item) => ({ id: item.id, label: item.name, detail: "Payroll period", href: `/payroll/${item.id}` })),
       ...invoices.map((item) => ({ id: item.id, label: item.invoiceNumber, detail: "Invoice", href: `/billing` })),
     ],
   });
