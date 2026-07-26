@@ -75,7 +75,6 @@ export async function updateBillingProfile(formData: FormData) {
       companyId: company.id,
       paymentMode,
       topDays,
-      billingCycle: "PER_PAYROLL",
     },
     update: { paymentMode, topDays },
   });
