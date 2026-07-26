@@ -580,6 +580,10 @@ model Company {
   payCycles                 PayCycle[]
   payrollGroups             PayrollGroup[]
   payrollAssignments        EmployeePayrollAssignment[]
+  sites                     Site[]
+  notifications             AppNotification[]
+  importBatches             ImportBatch[]
+  payrollSchemeConversations PayrollSchemeConversation[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -616,6 +620,7 @@ model User {
   verifiedConfirmations PaymentConfirmation[] @relation("ConfirmationVerifiedBy")
   notifications AppNotification[]
   lockedPayrollPeriods PayrollPeriod[] @relation("PayrollPeriodLockedBy")
+  supervisedPayrollAssignments EmployeePayrollAssignment[]
 
   @@index([organizationId])
   @@index([companyId])
@@ -783,6 +788,7 @@ model PayrollPeriod {
   paymentConfirmations     PaymentConfirmation[]
   validationIssues         PayrollValidationIssue[]
   payslips                 Payslip[]
+  invoices                 Invoice[]
 
   @@index([companyId])
   @@index([status])
@@ -1242,6 +1248,7 @@ model Branch {
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees Employee[]
   projects  Project[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1259,6 +1266,7 @@ model Department {
   updatedAt DateTime   @updatedAt @map("updated_at")
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees Employee[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1277,6 +1285,7 @@ model Position {
   updatedAt DateTime   @updatedAt @map("updated_at")
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees Employee[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1295,6 +1304,7 @@ model CostCenter {
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employees Employee[]
   projects  Project[]
+  payrollAssignments EmployeePayrollAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1478,6 +1488,7 @@ model PayrollGroup {
   companyId  String    @map("company_id") @db.Uuid
   payCycleId String    @map("pay_cycle_id") @db.Uuid
   projectId  String?   @map("project_id") @db.Uuid
+  siteId     String?   @map("site_id") @db.Uuid
   code       String
   name       String
   workerType String    @default("MONTHLY") @map("worker_type")
@@ -1487,6 +1498,8 @@ model PayrollGroup {
   updatedAt  DateTime  @updatedAt @map("updated_at")
   company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  site       Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  payCycleRef PayCycle @relation(fields: [payCycleId], references: [id], onDelete: Restrict)
   employeeAssignments EmployeePayrollAssignment[]
   periods    PayrollPeriod[]
 
@@ -1763,6 +1776,7 @@ model Invoice {
   project          Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   payrollPeriod    PayrollPeriod? @relation(fields: [payrollPeriodId], references: [id], onDelete: SetNull)
   items            InvoiceItem[]
+  paymentAllocations PaymentAllocation[]
   receivable       Receivable?
   collections      CollectionActivity[]
   attachments      FinancialAttachment[]
