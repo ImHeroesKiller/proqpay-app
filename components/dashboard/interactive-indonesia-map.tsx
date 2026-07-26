@@ -55,15 +55,16 @@ declare global {
 function loadLeaflet(): Promise<LeafletApi> {
   if (window.proqLeaflet) return Promise.resolve(window.proqLeaflet);
   return new Promise((resolve, reject) => {
-    const stylesheet =
-      document.querySelector("link[data-proq-leaflet]") ??
-      document.head.appendChild(
-        Object.assign(document.createElement("link"), {
-          rel: "stylesheet",
-          href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-          dataset: { proqLeaflet: "" },
-        }),
-      );
+    let stylesheet = document.querySelector<HTMLLinkElement>(
+      "link[data-proq-leaflet]",
+    );
+    if (!stylesheet) {
+      stylesheet = document.createElement("link");
+      stylesheet.rel = "stylesheet";
+      stylesheet.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      stylesheet.setAttribute("data-proq-leaflet", "");
+      document.head.appendChild(stylesheet);
+    }
     stylesheet.addEventListener(
       "error",
       () => reject(new Error("Leaflet stylesheet could not load")),
