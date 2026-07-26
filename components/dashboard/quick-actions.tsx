@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   Wallet,
   CalendarCheck,
@@ -63,7 +60,7 @@ export function QuickActions() {
       {actions.map((action, index) => {
         const Icon = action.icon;
         return (
-          <motion.div
+          <div
             key={action.href + action.label}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -89,7 +86,7 @@ export function QuickActions() {
                 {action.label}
               </span>
             </Link>
-          </motion.div>
+          </div>
         );
       })}
     </div>
