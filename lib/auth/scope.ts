@@ -12,7 +12,7 @@ export type SessionScope = {
  * SUPER_ADMIN / DIRECTOR may query org-wide internal data when companyId is null.
  */
 export function companyWhere(scope: SessionScope): { companyId?: string } {
-  if (scope.role === "SUPER_ADMIN") {
+  if (scope.role === "SUPER_ADMIN" || (scope.role === "DIRECTOR" && !scope.companyId)) {
     return {};
   }
   if (scope.companyId) {
