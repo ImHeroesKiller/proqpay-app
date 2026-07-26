@@ -196,7 +196,7 @@ export function ActivityTimeline({ items }: { items: AuditLog[] }) {
 
   return (
     <ol className="space-y-0 divide-y divide-border/70">
-      {items.map((item, index) => {
+      {items.map((item) => {
         const human = humanizeActivity(item);
         const Icon = human.icon;
         const badge =
@@ -211,9 +211,6 @@ export function ActivityTimeline({ items }: { items: AuditLog[] }) {
         return (
           <li
             key={item.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.04 }}
             className="flex gap-3 py-3.5 first:pt-0 last:pb-0"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy/5 text-navy">
