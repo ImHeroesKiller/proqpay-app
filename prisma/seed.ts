@@ -1143,7 +1143,7 @@ async function main() {
   ];
   for (const m of levels) {
     await prisma.approvalMatrix.upsert({
-      where: { companyId_name_level: { companyId: COMPANY_ID, name: m.name, level: m.level } },
+      where: { id: stableId(`am:${m.level}`) },
       create: { id: stableId(`am:${m.level}`), companyId: COMPANY_ID, name: m.name, level: m.level, role: m.role },
       update: { role: m.role },
     });
