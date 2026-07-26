@@ -5,22 +5,22 @@ type EmployeeDistributionCardProps = {
 };
 
 const regions = [
-  { name: "Sumatera", x: "20%", y: "48%", count: 168, tone: "bg-orange-500" },
-  { name: "Jawa", x: "38%", y: "72%", count: 652, tone: "bg-emerald-500" },
-  { name: "Kalimantan", x: "52%", y: "42%", count: 120, tone: "bg-blue-500" },
-  { name: "Sulawesi", x: "70%", y: "44%", count: 143, tone: "bg-violet-500" },
+  { name: "Sumatera", x: "20%", y: "48%", share: 0.14, tone: "bg-orange-500" },
+  { name: "Jawa", x: "38%", y: "72%", share: 0.54, tone: "bg-emerald-500" },
+  { name: "Kalimantan", x: "52%", y: "42%", share: 0.1, tone: "bg-blue-500" },
+  { name: "Sulawesi", x: "70%", y: "44%", share: 0.12, tone: "bg-violet-500" },
   {
     name: "Bali & Nusa Tenggara",
     x: "61%",
     y: "77%",
-    count: 74,
+    share: 0.06,
     tone: "bg-orange-500",
   },
   {
     name: "Maluku & Papua",
     x: "86%",
     y: "66%",
-    count: 55,
+    share: 0.04,
     tone: "bg-blue-500",
   },
 ];
@@ -28,6 +28,21 @@ const regions = [
 export function EmployeeDistributionCard({
   headcount,
 }: EmployeeDistributionCardProps) {
+  const counts = regions.map((region, index) =>
+    index === regions.length - 1
+      ? Math.max(
+          headcount -
+            regions
+              .slice(0, -1)
+              .reduce(
+                (sum, item) => sum + Math.round(headcount * item.share),
+                0,
+              ),
+          0,
+        )
+      : Math.round(headcount * region.share),
+  );
+
   return (
     <section
       className="h-full overflow-hidden rounded-[18px] border border-slate-100 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.055)]"
@@ -66,7 +81,7 @@ export function EmployeeDistributionCard({
             strokeWidth="10"
           />
         </svg>
-        {regions.map((region) => (
+        {regions.map((region, index) => (
           <div
             key={region.name}
             className="absolute -translate-x-1/2 -translate-y-1/2"
@@ -75,7 +90,7 @@ export function EmployeeDistributionCard({
             <span
               className={`grid h-9 w-9 place-items-center rounded-full border-4 border-white text-[10px] font-extrabold text-white shadow-lg ${region.tone}`}
             >
-              {region.count}
+              {counts[index]}
             </span>
             <span className="mt-1 block whitespace-nowrap text-center text-[9px] font-semibold text-navy/70">
               {region.name}
