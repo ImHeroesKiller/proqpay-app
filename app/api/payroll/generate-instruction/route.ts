@@ -11,9 +11,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const body = (await req.json()) as { periodId?: string };
-    if (!body.periodId) {
-      return NextResponse.json({ error: "periodId required" }, { status: 400 });
+    const body = (await req.json()) as {
+      periodId?: string;
+      bankCode?: "BCA" | "MANDIRI" | "BRI" | "CUSTOM";
+    };
+    if (!body.periodId || !body.bankCode) {
+      return NextResponse.json(
+        { error: "periodId dan bankCode wajib diisi" },
+        { status: 400 },
+      );
     }
     const id = await generatePaymentInstruction(
       {
@@ -23,12 +29,21 @@ export async function POST(req: Request) {
         companyId: session.user.companyId,
       },
       body.periodId,
+      body.bankCode,
     );
     return NextResponse.json({ id });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed" },
-      { status: 400 },
-    );
+    const message = e instanceof Error ? e.message : "Failed";
+    if (message.startsWith("BANK_TEMPLATE_REQUIRED:")) {
+      return NextResponse.json(
+        {
+          error: "Template resmi bank belum tersimpan.",
+          templateRequired: true,
+          bankCode: message.split(":")[1],
+        },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

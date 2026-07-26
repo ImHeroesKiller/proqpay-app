@@ -5,6 +5,7 @@ import {
   type ImportTemplateDef,
   IMPORT_TEMPLATES,
 } from "@/lib/import/templates";
+import { analyzeImportHeaders } from "@/lib/import/ida-analysis";
 
 export async function buildTemplateWorkbook(code: string): Promise<Buffer> {
   const tpl = getTemplate(code);
@@ -68,7 +69,12 @@ export type ParsedRow = {
 export async function parseImportExcel(
   buffer: Buffer,
   templateCode: string,
-): Promise<{ template: ImportTemplateDef; rows: ParsedRow[] }> {
+): Promise<{
+  template: ImportTemplateDef;
+  rows: ParsedRow[];
+  idaSummary: string;
+  mappingSource: "deterministic" | "llm";
+}> {
   const tpl = getTemplate(templateCode);
   if (!tpl) throw new Error("Template tidak ditemukan");
 
@@ -83,14 +89,23 @@ export async function parseImportExcel(
   if (!sheet) throw new Error("Sheet Data tidak ditemukan");
 
   const headerRow = sheet.getRow(1);
+  const rawHeaders: string[] = [];
+  headerRow.eachCell((cell) => {
+    const raw = String(cell.value ?? "")
+      .replace(/\s*\*$/, "")
+      .trim();
+    if (raw) rawHeaders.push(raw);
+  });
+  const analysis = await analyzeImportHeaders(rawHeaders, tpl);
   const headerMap = new Map<number, string>();
   headerRow.eachCell((cell, col) => {
     const raw = String(cell.value ?? "")
       .replace(/\s*\*$/, "")
       .trim();
+    const mappedKey = analysis.mapping[raw];
     const colDef = tpl.columns.find(
       (c) => c.label.toLowerCase() === raw.toLowerCase() || c.key === raw,
-    );
+    ) ?? tpl.columns.find((c) => c.key === mappedKey);
     if (colDef) headerMap.set(col, colDef.key);
   });
 
@@ -124,7 +139,12 @@ export async function parseImportExcel(
     if (!empty) rows.push({ rowNumber, data });
   });
 
-  return { template: tpl, rows };
+  return {
+    template: tpl,
+    rows,
+    idaSummary: analysis.summary,
+    mappingSource: analysis.source,
+  };
 }
 
 export function listTemplates() {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -27,14 +28,19 @@ type Batch = {
 export function ImportCenter({
   templates,
   initialBatches,
+  companies,
 }: {
   templates: ImportTemplateDef[];
   initialBatches: Batch[];
+  companies: { id: string; name: string }[];
 }) {
   const [selected, setSelected] = useState(templates[0]?.code ?? "EMPLOYEE_MASTER");
   const [batches, setBatches] = useState(initialBatches);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [companyId, setCompanyId] = useState(
+    companies.length === 1 ? companies[0].id : "",
+  );
 
   function onDownload() {
     start(async () => {
@@ -74,13 +80,14 @@ export function ImportCenter({
           templateCode: selected,
           fileName: file.name,
           base64,
+          companyId,
         });
         if (!res.ok) {
           setMessage(res.error);
           return;
         }
         setMessage(
-          `Validasi selesai: ${res.validRows} valid, ${res.warningRows} peringatan, ${res.errorRows} error dari ${res.totalRows} baris.`,
+          `${res.idaSummary} Validasi: ${res.validRows} valid, ${res.warningRows} peringatan, ${res.errorRows} error dari ${res.totalRows} baris.`,
         );
         setBatches((prev) => [
           {
@@ -130,12 +137,48 @@ export function ImportCenter({
         </div>
       )}
 
+      {batches.some((batch) => batch.status === "COMMITTED") && (
+        <Card className="border-primary/20 bg-primary/[0.03] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-navy">Data sudah masuk ke proses payroll</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Lanjutkan validasi client/project, lalu konfirmasi skema remunerasi Indonesia bersama IDA.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/validation">Validasi data</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/scheme-builder">Payroll setup dengan IDA</Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-1">
           <h3 className="font-display text-base font-semibold text-navy">Template</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Pilih template, unduh, isi sheet Data, lalu unggah kembali.
           </p>
+          <label className="mt-4 block text-xs font-semibold text-navy">
+            Client tujuan
+            <select
+              value={companyId}
+              onChange={(event) => setCompanyId(event.target.value)}
+              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-white px-3 text-sm"
+            >
+              <option value="">Pilih client</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto">
             {templates.map((t) => (
               <button
@@ -162,10 +205,11 @@ export function ImportCenter({
               <input
                 type="file"
                 accept=".xlsx,.xls"
+                disabled={!companyId}
                 className="hidden"
                 onChange={(e) => onUpload(e.target.files?.[0] ?? null)}
               />
-              <span className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl bg-navy px-3 text-sm font-medium text-white">
+              <span className={`inline-flex h-9 items-center gap-2 rounded-xl bg-navy px-3 text-sm font-medium text-white ${companyId ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}>
                 <Upload className="h-3.5 w-3.5" />
                 Unggah
               </span>

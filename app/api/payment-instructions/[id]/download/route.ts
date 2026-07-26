@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { buildInstructionCsv } from "@/lib/payroll/actions";
+import { buildBankInstructionFile } from "@/lib/payments/export-bank-file";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -26,11 +26,11 @@ export async function GET(
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const csv = await buildInstructionCsv(id);
-    return new NextResponse(csv, {
+    const file = await buildBankInstructionFile(id);
+    return new NextResponse(new Uint8Array(file.buffer), {
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${pi.instructionNumber}.csv"`,
+        "Content-Type": file.contentType,
+        "Content-Disposition": `attachment; filename="${pi.instructionNumber}.${file.extension}"`,
       },
     });
   } catch (e) {

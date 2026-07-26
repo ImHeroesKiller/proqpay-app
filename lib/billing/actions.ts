@@ -1,117 +1,25 @@
 "use server";
 
-import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth/session";
+import { issueInvoiceAfterPaymentInstruction } from "@/lib/billing/service";
 
 export async function createDraftInvoiceFromPayroll(periodId: string, managementFeePercent = 5) {
   const scope = await requireSession();
-  const user = await prisma.user.findUnique({ where: { id: scope.userId } });
-  const period = await prisma.payrollPeriod.findUnique({
-    where: { id: periodId },
-    include: { company: true, lines: true },
-  });
-  if (!period) return { ok: false as const, error: "Periode tidak ditemukan" };
-  if (!["LOCKED", "APPROVED", "DISBURSED", "PAYMENT_INSTRUCTION_GENERATED", "CLOSED"].includes(period.status)) {
-    // Allow draft after approval/lock; still allow APPROVED
-    if (period.status === "DRAFT" || period.status === "WAITING") {
-      return {
-        ok: false as const,
-        error: "Invoice draft hanya dapat dibuat setelah payroll disetujui atau dikunci",
-      };
-    }
+  try {
+    const result = await issueInvoiceAfterPaymentInstruction(
+      scope,
+      periodId,
+      managementFeePercent,
+    );
+    return { ok: true as const, ...result };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error ? error.message : "Invoice gagal diterbitkan",
+    };
   }
-
-  const existing = await prisma.invoice.findFirst({
-    where: { payrollPeriodId: periodId, status: "DRAFT" },
-  });
-  if (existing) {
-    return { ok: true as const, invoiceId: existing.id, existing: true };
-  }
-
-  const gross = Number(period.totalGross);
-  const bpjsEmployer = Number(period.totalBpjsEmployer);
-  const fee = Math.round(gross * (managementFeePercent / 100));
-  const subtotal = gross + bpjsEmployer + fee;
-  const tax = Math.round(fee * 0.11); // PPN on management fee (simplified)
-  const total = subtotal + tax;
-
-  const count = await prisma.invoice.count({ where: { companyId: period.companyId } });
-  const invoiceNumber = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(5, "0")}`;
-  const id = randomUUID();
-
-  await prisma.invoice.create({
-    data: {
-      id,
-      organizationId: period.company.organizationId,
-      companyId: period.companyId,
-      clientId: period.companyId,
-      payrollPeriodId: periodId,
-      invoiceNumber,
-      status: "DRAFT",
-      issueDate: new Date(),
-      dueDate: new Date(Date.now() + 14 * 86400000),
-      subtotal,
-      tax,
-      managementFee: fee,
-      grandTotal: total,
-      notes: `Draft invoice dari payroll ${period.name}`,
-      createdBy: scope.userId,
-      items: {
-        create: [
-          {
-            id: randomUUID(),
-            description: `Managed payroll — ${period.name} (${period.employeeCount} karyawan)`,
-            quantity: 1,
-            unitPrice: gross,
-            amount: gross,
-            sortOrder: 1,
-          },
-          {
-            id: randomUUID(),
-            description: "BPJS employer (recharge)",
-            quantity: 1,
-            unitPrice: bpjsEmployer,
-            amount: bpjsEmployer,
-            sortOrder: 2,
-          },
-          {
-            id: randomUUID(),
-            description: `Management fee ${managementFeePercent}%`,
-            quantity: 1,
-            unitPrice: fee,
-            amount: fee,
-            sortOrder: 3,
-          },
-          {
-            id: randomUUID(),
-            description: "PPN 11% (atas management fee)",
-            quantity: 1,
-            unitPrice: tax,
-            amount: tax,
-            sortOrder: 4,
-          },
-        ],
-      },
-    },
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      id: randomUUID(),
-      companyId: period.companyId,
-      userId: scope.userId,
-      userName: user?.name ?? "User",
-      userRole: scope.role,
-      action: "INVOICE_DRAFT_CREATE",
-      entity: "Invoice",
-      entityId: id,
-      detail: invoiceNumber,
-      ip: "app",
-    },
-  });
-
-  return { ok: true as const, invoiceId: id, invoiceNumber, existing: false };
 }
 
 export async function listInvoices() {

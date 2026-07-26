@@ -59,6 +59,28 @@ export async function updateCompanySettings(formData: FormData) {
   refreshSettings();
 }
 
+export async function updateBillingProfile(formData: FormData) {
+  const { company } = await scopedCompany(clean(formData.get("companyId"), 64));
+  const paymentMode = clean(formData.get("paymentMode"), 24);
+  const topDays = Number(formData.get("topDays"));
+  if (!["ADVANCE", "REIMBURSEMENT"].includes(paymentMode)) {
+    throw new Error("Mode pembayaran invoice tidak valid.");
+  }
+  if (!Number.isInteger(topDays) || topDays < 0 || topDays > 365) {
+    throw new Error("Termin pembayaran harus 0–365 hari.");
+  }
+  await prisma.clientBillingProfile.upsert({
+    where: { companyId: company.id },
+    create: {
+      companyId: company.id,
+      paymentMode,
+      topDays,
+    },
+    update: { paymentMode, topDays },
+  });
+  refreshSettings();
+}
+
 export async function saveApprovalRule(formData: FormData) {
   const { company } = await scopedCompany(clean(formData.get("companyId"), 64));
   const id = clean(formData.get("id"), 64);
