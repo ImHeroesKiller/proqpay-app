@@ -327,8 +327,8 @@ export function mapCompanySettings(
     legalName: company.legalName ?? company.name,
     npwp: company.npwp ?? "—",
     address: company.address ?? "—",
-    payDay: company.payDay,
-    currency: company.currency,
+    payDay: company.payDay ?? 25,
+    currency: company.currency ?? "IDR",
     defaultFundingModel: company.defaultFundingModel,
     fundingEnabled: company.fundingEnabled,
     approvalLevels: [

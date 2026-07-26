@@ -86,7 +86,8 @@ export type PaymentInstructionStatus =
   | "EXECUTED"
   | "PARTIALLY_FAILED"
   | "FAILED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "GENERATED";
 
 export type ReconciliationStatus =
   | "NOT_STARTED"

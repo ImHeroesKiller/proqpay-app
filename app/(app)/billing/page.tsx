@@ -76,7 +76,7 @@ export default async function BillingPage() {
                     {inv.dueDate ? formatDate(inv.dueDate) : "—"}
                   </td>
                   <td className="py-3 pr-3">{formatRupiah(Number(inv.managementFee))}</td>
-                  <td className="py-3 font-medium">{formatRupiah(Number(inv.totalAmount))}</td>
+                  <td className="py-3 font-medium">{formatRupiah(Number(inv.grandTotal))}</td>
                 </tr>
               ))}
             </tbody>

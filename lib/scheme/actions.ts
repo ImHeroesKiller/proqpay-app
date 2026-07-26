@@ -308,14 +308,14 @@ export async function submitSchemeForApproval(draftId: string) {
         id: randomUUID(),
         draftId,
         level: 1,
-        approverRole: "PAYROLL_ADMIN",
+        role: "PAYROLL_ADMIN",
         status: "PENDING",
       },
       {
         id: randomUUID(),
         draftId,
         level: 2,
-        approverRole: "DIRECTOR",
+        role: "DIRECTOR",
         status: "PENDING",
       },
     ],
@@ -366,7 +366,7 @@ export async function approveSchemeDraft(
     data: {
       status: decision,
       comment,
-      actedBy: scope.userId,
+      approverId: scope.userId,
       actedAt: new Date(),
     },
   });
