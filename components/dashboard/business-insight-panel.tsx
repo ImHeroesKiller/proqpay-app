@@ -3,25 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
 import {
-  ExternalLink,
-  EyeOff,
+  ArrowRight,
   CheckCircle2,
   Loader2,
-  Search,
+  Sparkles,
+  TriangleAlert,
+  TrendingUp,
 } from "lucide-react";
-import type {
-  ProQInsight,
-  ProQIntelligencePayload,
-} from "@/lib/ai/proq-intelligence";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import type { ProQIntelligencePayload } from "@/lib/ai/proq-intelligence";
 
 const ProQAvatar = dynamic(
-  () =>
-    import("@/components/ai/proq-avatar").then((m) => m.ProQAvatar),
+  () => import("@/components/ai/proq-avatar").then((m) => m.ProQAvatar),
   {
     ssr: false,
     loading: () => (
@@ -29,13 +22,6 @@ const ProQAvatar = dynamic(
     ),
   },
 );
-
-const severityStyles: Record<ProQInsight["severity"], string> = {
-  critical: "border-red-200 bg-red-50/90",
-  warning: "border-amber-200 bg-amber-50/90",
-  info: "border-sky-200 bg-sky-50/80",
-  positive: "border-emerald-200 bg-emerald-50/80",
-};
 
 function mapAvatar(
   state: ProQIntelligencePayload["avatarState"],
@@ -56,8 +42,6 @@ export function BusinessInsightPanel({
     initial ?? null,
   );
   const [loading, setLoading] = useState(!initial);
-  const [ignored, setIgnored] = useState<Set<string>>(new Set());
-  const [resolved, setResolved] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -82,112 +66,89 @@ export function BusinessInsightPanel({
     };
   }, []);
 
-  const insights =
-    data?.insights
-      .filter((i) => !ignored.has(i.id) && !resolved.has(i.id))
-      .slice(0, 3) ?? [];
+  const insights = data?.insights.slice(0, 3) ?? [];
 
   const avatarState = loading
     ? "thinking"
     : mapAvatar(data?.avatarState ?? "thinking");
 
   return (
-    <div
+    <section
       id="business-insight"
-      className="rounded-[20px] border border-border/80 bg-white p-5 shadow-soft sm:p-6"
+      className="relative flex h-full min-h-[610px] flex-col overflow-hidden rounded-[22px] border border-violet-300/70 bg-[radial-gradient(circle_at_75%_10%,rgba(102,75,255,.6),transparent_28%),linear-gradient(160deg,#071542_0%,#10145d_48%,#062967_100%)] p-5 text-white shadow-[0_10px_30px_rgba(56,39,180,.28)]"
+      aria-label="IDA Intelligent Digital Assistant"
     >
-      <div className="mb-5 flex items-center gap-2.5">
-        <h2 className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">
-          Business Insight AI
-        </h2>
-        <Badge className="rounded-full bg-orange/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange hover:bg-orange/20">
+      <div className="absolute inset-x-5 top-0 h-px bg-violet-200/80 shadow-[0_0_14px_5px_rgba(196,158,255,.85)]" />
+      <div className="relative flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-amber-300" />
+          <div>
+            <h2 className="font-display text-xl font-bold">IDA</h2>
+            <p className="text-[11px] text-blue-100">
+              Intelligent Digital Assistant
+            </p>
+          </div>
+        </div>
+        <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-violet-700">
           BETA
-        </Badge>
+        </span>
         {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <Loader2 className="h-4 w-4 animate-spin text-white/70" />
         ) : null}
       </div>
-
-      <div className="grid gap-6 md:grid-cols-[160px_1fr] lg:grid-cols-[180px_1fr]">
-        <div className="flex items-start justify-center md:justify-start">
-          <ProQAvatar state={avatarState} size={168} float />
-        </div>
-
-        <div className="space-y-3">
-          {insights.map((insight, index) => (
-            <motion.div
-              key={insight.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={cn(
-                "rounded-2xl border p-4",
-                severityStyles[insight.severity],
-              )}
-            >
-              <p className="text-[15px] font-semibold leading-snug text-navy">
-                {insight.headline}
-              </p>
-              {insight.detail ? (
-                <p className="mt-1 text-sm leading-relaxed text-navy/70">
-                  {insight.detail}
+      <div className="relative mt-4 flex min-h-[185px] items-end justify-center overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_90%,rgba(109,86,255,.6),transparent_45%)]">
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49%,rgba(255,255,255,.16)_50%,transparent_51%),linear-gradient(transparent_49%,rgba(255,255,255,.1)_50%,transparent_51%)] bg-[size:38px_38px] opacity-30" />
+        <ProQAvatar
+          state={avatarState}
+          size={178}
+          className="relative translate-y-7 border-2 border-white/25 shadow-[0_0_38px_rgba(182,138,255,.65)]"
+        />
+      </div>
+      <div className="relative mt-3">
+        <h3 className="text-center font-display text-[15px] font-bold">
+          Ringkasan & Insight Hari Ini
+        </h3>
+        <div className="mt-3 space-y-2.5">
+          {insights.map((insight) => {
+            const Icon =
+              insight.severity === "positive"
+                ? CheckCircle2
+                : insight.severity === "warning" ||
+                    insight.severity === "critical"
+                  ? TriangleAlert
+                  : TrendingUp;
+            const iconTone =
+              insight.severity === "positive"
+                ? "text-emerald-300"
+                : insight.severity === "warning" ||
+                    insight.severity === "critical"
+                  ? "text-amber-300"
+                  : "text-violet-300";
+            return (
+              <div
+                key={insight.id}
+                className="flex gap-3 rounded-xl border border-white/10 bg-slate-950/35 p-3"
+              >
+                <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconTone}`} />
+                <p className="text-[12px] leading-relaxed text-blue-50">
+                  {insight.detail || insight.headline}
                 </p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <Button
-                  asChild
-                  size="sm"
-                  variant="outline"
-                  className="h-8 rounded-lg text-xs"
-                >
-                  <Link href={insight.moduleHref}>
-                    <Search className="h-3.5 w-3.5" strokeWidth={1.85} />
-                    Review
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  variant="outline"
-                  className="h-8 rounded-lg text-xs"
-                >
-                  <Link href={insight.moduleHref}>
-                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.85} />
-                    Buka modul
-                  </Link>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 rounded-lg text-xs text-emerald-700"
-                  onClick={() =>
-                    setResolved((s) => new Set(s).add(insight.id))
-                  }
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.85} />
-                  Resolve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 rounded-lg text-xs"
-                  onClick={() =>
-                    setIgnored((s) => new Set(s).add(insight.id))
-                  }
-                >
-                  <EyeOff className="h-3.5 w-3.5" strokeWidth={1.85} />
-                  Ignore
-                </Button>
               </div>
-            </motion.div>
-          ))}
+            );
+          })}
           {!loading && insights.length === 0 ? (
-            <p className="rounded-2xl border border-border bg-[#F7F8FC] p-4 text-sm text-muted-foreground">
-              Semua insight sudah ditinjau. Operasi payroll terlihat stabil.
-            </p>
+            <div className="rounded-xl border border-white/10 bg-slate-950/35 p-3 text-[12px] text-blue-50">
+              Operasi payroll terlihat stabil dan tidak ada pengecualian kritis.
+            </div>
           ) : null}
         </div>
       </div>
-    </div>
+      <Link
+        href="/ida"
+        className="relative mt-auto flex items-center justify-between pt-5 text-sm font-semibold text-white hover:text-violet-100"
+      >
+        Klik untuk ngobrol dengan IDA <ArrowRight className="h-5 w-5" />
+      </Link>
+    </section>
   );
 }
