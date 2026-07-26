@@ -509,6 +509,8 @@ model Organization {
   updatedAt DateTime  @updatedAt @map("updated_at")
   companies Company[]
   users     User[]
+  salesOpportunities SalesOpportunity[]
+  capitalPartners CapitalPartner[]
 
   @@map("organizations")
   @@schema("proqpay")
