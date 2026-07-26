@@ -129,12 +129,12 @@ export default async function DashboardPage() {
             ))}
           </div>
           <div className="grid gap-4 lg:grid-cols-[1.25fr_.9fr]">
-            <Card className="min-w-0 border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)] lg:h-[290px]">
+            <Card className="min-w-0 border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)] lg:h-[310px]">
               <CardHeader className="p-5 pb-3">
-                <CardTitle className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
+                <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
                   Payroll by Client / Project
                 </CardTitle>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs leading-5 text-muted-foreground">
                   Ringkasan bruto dan status per client
                 </p>
               </CardHeader>
@@ -142,7 +142,7 @@ export default async function DashboardPage() {
                 <ClientPayrollTable rows={clientRows} maxRows={3} />
               </CardContent>
             </Card>
-            <div className="lg:h-[290px]">
+            <div className="lg:h-[310px]">
               <PaymentStatusCard
                 total={Number(bruto)}
                 failed={failedPayments}
@@ -159,27 +159,27 @@ export default async function DashboardPage() {
       >
         <Card className="border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
           <CardHeader className="p-5 pb-3">
-            <CardTitle className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
+            <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
               Aktivitas Terbaru
             </CardTitle>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs leading-5 text-muted-foreground">
               Ringkasan aktivitas operasional
             </p>
           </CardHeader>
-          <CardContent className="max-h-[250px] overflow-y-auto p-5 pt-0">
+          <CardContent className="max-h-[270px] overflow-y-auto p-5 pt-0">
             <ActivityTimeline items={auditLogs.slice(0, 5)} />
           </CardContent>
         </Card>
         <ComponentCostCard total={Number(bruto)} />
         <AttentionCenter alerts={dashboardAlerts} />
-        <div className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
-          <h2 className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
+        <div className="rounded-[18px] border border-slate-100 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
+          <h2 className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
             Aksi Cepat
           </h2>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Akses pekerjaan payroll yang paling sering digunakan.
           </p>
-          <div className="mt-3">
+          <div className="mt-4">
             <QuickActions />
           </div>
         </div>
