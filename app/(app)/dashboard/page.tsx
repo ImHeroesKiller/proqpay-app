@@ -8,6 +8,7 @@ import { ClientPayrollTable } from "@/components/dashboard/client-payroll-table"
 import { InteractiveIndonesiaMap } from "@/components/dashboard/interactive-indonesia-map";
 import { PaymentStatusCard } from "@/components/dashboard/payment-status-card";
 import { ComponentCostCard } from "@/components/dashboard/component-cost-card";
+import { DashboardPeriodFilter } from "@/components/dashboard/dashboard-period-filter";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardSnapshot } from "@/lib/data/dashboard-snapshot";
@@ -27,7 +28,60 @@ function formatCompactBruto(n: number): string {
   return formatRupiah(n);
 }
 
-export default async function DashboardPage() {
+function parseDate(value: string | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function resolveRange(
+  preset: string,
+  startValue?: string,
+  endValue?: string,
+): { start: Date; end: Date; preset: string; startValue: string; endValue: string } {
+  const today = new Date();
+  const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
+  const customStart = parseDate(startValue);
+  const customEnd = parseDate(endValue);
+
+  if (preset === "custom" && customStart && customEnd) {
+    customEnd.setUTCHours(23, 59, 59, 999);
+    return {
+      start: customStart,
+      end: customEnd,
+      preset,
+      startValue: startValue ?? "",
+      endValue: endValue ?? "",
+    };
+  }
+
+  const start = new Date(end);
+  if (preset === "week") start.setUTCDate(start.getUTCDate() - 6);
+  else if (preset === "quarter") start.setUTCMonth(start.getUTCMonth() - 2, 1);
+  else if (preset === "year") start.setUTCMonth(0, 1);
+  else start.setUTCDate(1);
+  start.setUTCHours(0, 0, 0, 0);
+
+  return {
+    start,
+    end,
+    preset: ["week", "month", "quarter", "year"].includes(preset) ? preset : "month",
+    startValue: start.toISOString().slice(0, 10),
+    endValue: end.toISOString().slice(0, 10),
+  };
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const rangeParam = Array.isArray(params.range) ? params.range[0] : params.range;
+  const startParam = Array.isArray(params.start) ? params.start[0] : params.start;
+  const endParam = Array.isArray(params.end) ? params.end[0] : params.end;
+  const selectedRange = resolveRange(rangeParam ?? "month", startParam, endParam);
+
   const scope = await requireModule("dashboard");
   const session = await auth();
   const {
@@ -36,7 +90,11 @@ export default async function DashboardPage() {
     payrollPeriods,
     auditLogs,
     clientRows,
-  } = await getDashboardSnapshot(scope.role, scope);
+    mapEmployees,
+  } = await getDashboardSnapshot(scope.role, scope, {
+    start: selectedRange.start,
+    end: selectedRange.end,
+  });
 
   const active =
     payrollPeriods.find((p) =>
@@ -71,25 +129,25 @@ export default async function DashboardPage() {
         .find((k) => /headcount|karyawan/i.test(k.label))
         ?.value.replace(/\D/g, "") || 0,
     );
-  const bruto = active?.totalGross ?? active?.totalNet ?? 0;
+  const bruto = payrollPeriods.reduce(
+    (sum, period) => sum + Number(period.totalGross || period.totalNet || 0),
+    0,
+  );
   const slaOnTrack = pendingApprovals === 0 && failedPayments === 0;
   const slaValue = slaOnTrack ? 92 : 78;
 
   const executiveKpis: KpiCardType[] = [
     {
       label: "Total Payroll (Bruto)",
-      value: bruto
-        ? formatCompactBruto(Number(bruto))
-        : dashboardKpis.find((k) => /payroll|value/i.test(k.label))?.value ||
-          formatRupiah(0),
-      change: "12,5% dari periode lalu",
+      value: bruto ? formatCompactBruto(Number(bruto)) : formatRupiah(0),
+      change: `${selectedRange.startValue} s.d. ${selectedRange.endValue}`,
       trend: "up",
       href: "/payroll",
     },
     {
       label: "Total Karyawan",
       value: String(headcount || dashboardKpis[0]?.value || "0"),
-      change: "Karyawan aktif",
+      change: "Karyawan aktif pada periode",
       trend: "up",
       href: "/employees",
     },
@@ -103,7 +161,7 @@ export default async function DashboardPage() {
     {
       label: "Penghematan Biaya",
       value: bruto ? formatCompactBruto(Number(bruto) * 0.081) : "Rp 0",
-      change: "8,1% dari bulan lalu",
+      change: "Estimasi 8,1% pada periode",
       trend: "up",
       href: "/reports",
     },
@@ -118,6 +176,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1480px] space-y-4">
+      <div className="flex justify-end">
+        <DashboardPeriodFilter
+          preset={selectedRange.preset}
+          start={selectedRange.startValue}
+          end={selectedRange.endValue}
+        />
+      </div>
+
       <section
         className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]"
         aria-label="Dashboard utama"
@@ -135,7 +201,7 @@ export default async function DashboardPage() {
                   Payroll by Client / Project
                 </CardTitle>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  Ringkasan bruto dan status per client
+                  Ringkasan bruto dan status per client pada periode terpilih
                 </p>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 overflow-auto p-5 pt-0">
@@ -158,7 +224,7 @@ export default async function DashboardPage() {
         className="grid gap-4 xl:grid-cols-3"
       >
         <div className="min-w-0 xl:col-span-2">
-          <InteractiveIndonesiaMap headcount={headcount} />
+          <InteractiveIndonesiaMap headcount={headcount} employees={mapEmployees} />
         </div>
         <Card className="flex min-h-[430px] min-w-0 flex-col border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
           <CardHeader className="shrink-0 p-5 pb-3">
@@ -166,7 +232,7 @@ export default async function DashboardPage() {
               Aktivitas Terbaru
             </CardTitle>
             <p className="text-xs leading-5 text-muted-foreground">
-              Ringkasan aktivitas operasional
+              Ringkasan aktivitas operasional pada periode terpilih
             </p>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-y-auto p-5 pt-0">
