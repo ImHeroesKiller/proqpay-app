@@ -1,7 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import { CommandHero } from "@/components/dashboard/command-hero";
-import { PayrollStartGuide } from "@/components/dashboard/payroll-start-guide";
 import { AttentionCenter } from "@/components/dashboard/attention-center";
 import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
 import { QuickActions } from "@/components/dashboard/quick-actions";
@@ -9,7 +7,6 @@ import { ChartsLazy } from "@/components/dashboard/charts-lazy";
 import { PayrollPipeline } from "@/components/dashboard/payroll-pipeline";
 import { BusinessInsightPanel } from "@/components/dashboard/business-insight-panel";
 import { ClientPayrollTable } from "@/components/dashboard/client-payroll-table";
-import { buildPipeline } from "@/lib/domain/payroll-pipeline";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardSnapshot } from "@/lib/data/dashboard-snapshot";
@@ -24,23 +21,6 @@ function formatCompactBruto(n: number): string {
   if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 2 })} M`;
   if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`;
   return formatRupiah(n);
-}
-
-function formatIdDate(iso?: string) {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-  } catch {
-    return iso;
-  }
-}
-
-function guideStage(status?: string) {
-  if (!status || status === "DRAFT") return 0;
-  if (["WAITING", "LOCKED"].includes(status)) return 2;
-  if (["APPROVED", "REJECTED"].includes(status)) return 3;
-  if (["PAYMENT_INSTRUCTION_GENERATED", "WAITING_CLIENT_TRANSFER", "TRANSFER_PROOF_UPLOADED", "UNDER_VERIFICATION", "VERIFIED", "DISBURSED", "CLOSED"].includes(status)) return 4;
-  return 1;
 }
 
 export default async function DashboardPage() {
@@ -75,12 +55,6 @@ export default async function DashboardPage() {
     { label: "SLA Payroll", value: `${slaValue}%`, change: slaOnTrack ? "On Track" : "Perlu perhatian", trend: slaOnTrack ? "up" : "down", href: "/reports" },
   ];
 
-  const pipeline = buildPipeline(active?.status, {
-    pendingApprovals: pendingApprovals > 0 ? pendingApprovals : 0,
-    failedPayments: failedPayments > 0 ? failedPayments : 0,
-    employeeCount: headcount || undefined,
-  });
-
   const initialIntelligence = buildHeuristicInsights({
     userName: session?.user?.name,
     kpis: executiveKpis,
@@ -88,76 +62,41 @@ export default async function DashboardPage() {
     periods: payrollPeriods,
   });
 
-  const periodLabel = active?.name ?? "Juli 2026";
+  const firstName = session?.user?.name?.split(" ")[0] ?? "Siti";
 
   return (
     <div className="space-y-5">
-      <CommandHero
-        periodName={periodLabel}
-        userName={session?.user?.name}
-        cutOffDate={formatIdDate(active?.periodEnd)}
-        payrollDate={formatIdDate(active?.payDate)}
-        slaLabel={`${slaValue}% On Track`}
-        insightCount={Math.min(3, initialIntelligence.insights.length || 3)}
-      />
-
-      <PayrollStartGuide currentStage={guideStage(active?.status)} periodName={periodLabel} />
-
-      <section aria-label="Progress payroll">
-        <Card className="border-border/80 bg-white shadow-soft">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">Progress Payroll {periodLabel}</CardTitle>
-            <p className="text-sm text-muted-foreground">Status rinci proses payroll aktif</p>
-          </CardHeader>
-          <CardContent className="pb-6 pt-2"><PayrollPipeline stages={pipeline} /></CardContent>
-        </Card>
-      </section>
-
-      <section aria-label="Key performance indicators">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          {executiveKpis.map((item, index) => <KpiCard key={item.label} item={item} index={index} />)}
-        </div>
-      </section>
-
-      <section id="business-insight" aria-label="Business insight and attention" className="grid gap-5 lg:grid-cols-5">
-        <div className="lg:col-span-3"><BusinessInsightPanel initial={initialIntelligence} /></div>
-        <div className="lg:col-span-2"><AttentionCenter alerts={dashboardAlerts} /></div>
-      </section>
-
-      <section aria-label="Payroll by client and trend" className="grid gap-5 lg:grid-cols-5">
-        <Card className="border-border/80 bg-white shadow-soft lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">Payroll by Client / Project</CardTitle>
-            <p className="text-sm text-muted-foreground">Ringkasan bruto dan status per client</p>
-          </CardHeader>
+      <section className="flex items-end justify-between gap-4" aria-label="Dashboard title"><div><h2 className="font-display text-2xl font-bold tracking-tight text-navy sm:text-3xl">My Workspace</h2><p className="mt-1 text-sm text-muted-foreground">Ringkasan payroll, risiko, dan tindakan penting untuk {firstName}.</p></div></section>
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]" aria-label="Payroll overview">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">{executiveKpis.slice(0, 4).map((item) => <KpiCard key={item.label} item={item} />)}</div>
+        <div className="xl:row-span-2"><BusinessInsightPanel initial={initialIntelligence} /></div>
+        <Card className="border-border/80 bg-white shadow-soft xl:col-span-1">
+          <CardHeader><CardTitle className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">Payroll by Client / Project</CardTitle><p className="text-sm text-muted-foreground">Ringkasan bruto dan status per client</p></CardHeader>
           <CardContent><ClientPayrollTable rows={clientRows} /></CardContent>
         </Card>
-        <Card className="border-border/80 bg-white shadow-soft lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">Payroll Trend (6 Bulan Terakhir)</CardTitle>
-            <p className="text-sm text-muted-foreground">Nilai payroll dalam Rp miliar</p>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ChartsLazy data={chartData.map((d) => ({ ...d, amount: d.amount / 1000 }))} />
-          </CardContent>
-        </Card>
       </section>
 
-      <section aria-label="Activity and quick actions" className="grid gap-5 lg:grid-cols-5">
-        <Card className="border-border/80 bg-white shadow-soft lg:col-span-3">
+      <section aria-label="Operational insight" className="grid gap-5 lg:grid-cols-3">
+        <Card className="border-border/80 bg-white shadow-soft lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">Payroll Trend</CardTitle>
+            <p className="text-sm text-muted-foreground">Nilai payroll 6 bulan terakhir</p>
+          </CardHeader>
+          <CardContent className="h-72"><ChartsLazy data={chartData.map((d) => ({ ...d, amount: d.amount / 1000 }))} /></CardContent>
+        </Card>
+        <div className="lg:col-span-1"><AttentionCenter alerts={dashboardAlerts} /></div>
+        <div className="lg:col-span-1"><QuickActions /></div>
+      </section>
+
+      <section aria-label="Aktivitas terbaru" className="grid gap-5 lg:grid-cols-2">
+        <Card className="border-border/80 bg-white shadow-soft">
           <CardHeader>
             <CardTitle className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">Aktivitas Terbaru</CardTitle>
             <p className="text-sm text-muted-foreground">Ringkasan aktivitas operasional</p>
           </CardHeader>
           <CardContent className="max-h-[360px] overflow-y-auto"><ActivityTimeline items={auditLogs.slice(0, 8)} /></CardContent>
         </Card>
-        <div className="lg:col-span-2">
-          <div className="mb-3">
-            <h2 className="font-display text-base font-bold uppercase tracking-[0.08em] text-navy">Aksi langsung</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Gunakan untuk tugas yang sudah Anda pahami, atau tanyakan ke IDA</p>
-          </div>
-          <QuickActions />
-        </div>
+        <div className="grid grid-cols-2 gap-4">{executiveKpis.slice(4).map((item) => <KpiCard key={item.label} item={item} />)}</div>
       </section>
     </div>
   );

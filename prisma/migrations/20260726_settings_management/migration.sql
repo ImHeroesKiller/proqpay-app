@@ -1,0 +1,9 @@
+ALTER TABLE proqpay.companies
+  ADD COLUMN IF NOT EXISTS pay_day INTEGER NOT NULL DEFAULT 5,
+  ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'IDR';
+
+DO $$ BEGIN
+  ALTER TABLE proqpay.companies
+    ADD CONSTRAINT companies_pay_day_range CHECK (pay_day BETWEEN 1 AND 31);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

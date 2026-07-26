@@ -6,188 +6,41 @@ import { Badge } from "@/components/ui/badge";
 import { getCompanySettings, getUsers } from "@/lib/data/queries";
 import { requireModule } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
-import { updateCompanySettings, updateMyProfile } from "./actions";
+import { deleteApprovalRule, deleteBankAccount, deleteUser, saveApprovalRule, saveBankAccount, saveUser, updateCompanySettings, updateMyProfile } from "./actions";
+
+const roles = ["SUPER_ADMIN", "DIRECTOR", "PAYROLL_ADMIN", "PAYROLL_OPERATOR", "FINANCE", "HR", "APPROVER", "AUDITOR", "VIEWER"];
+const purposes = ["CLIENT_PAYROLL_SOURCE", "PROQPAY_OPERATIONAL", "FUNDING_SOURCE", "SETTLEMENT", "COLLECTION", "OTHER"];
+const field = "h-10 w-full rounded-xl border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20";
+const save = "h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-soft hover:bg-primary/90";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="grid gap-1 text-sm font-medium text-navy"><span>{label}</span>{children}</label>; }
+function RoleOptions() { return <>{roles.map((role) => <option key={role} value={role}>{role.replaceAll("_", " ")}</option>)}</>; }
 
 export default async function SettingsPage() {
   const scope = await requireModule("settings");
-  const profile = await prisma.user.findUniqueOrThrow({ where: { id: scope.userId }, select: { name: true, email: true, department: true } });
-  const [companySettings, users] = await Promise.all([
-    getCompanySettings(scope),
-    getUsers(scope),
+  const [profile, settings, users] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: scope.userId }, select: { name: true, email: true, department: true } }),
+    getCompanySettings(scope), getUsers(scope),
   ]);
+  const companyId = settings?.id ?? "";
+  const [rules, banks] = companyId ? await Promise.all([
+    prisma.approvalMatrix.findMany({ where: { companyId }, orderBy: [{ level: "asc" }, { name: "asc" }] }),
+    prisma.bankAccount.findMany({ where: { companyId }, orderBy: [{ isPrimary: "desc" }, { label: "asc" }] }),
+  ]) : [[], []];
+  const canManage = Boolean(companyId) && ["SUPER_ADMIN", "DIRECTOR"].includes(scope.role);
 
-  const settings = companySettings ?? {
-    name: "—",
-    legalName: "—",
-    npwp: "—",
-    address: "—",
-    payDay: 5,
-    currency: "IDR",
-    defaultFundingModel: "SELF_FUNDED",
-    fundingEnabled: true,
-    approvalLevels: [
-      "Payroll Admin",
-      "Finance Manager",
-      "Finance Control",
-      "Director",
-    ],
-    bankAccounts: [] as {
-      bank: string;
-      account: string;
-      label: string;
-      purpose: string;
-    }[],
-  };
-  const canManageCompany = ["SUPER_ADMIN", "DIRECTOR"].includes(scope.role);
+  return <div className="space-y-5">
+    <PageHeader title="Settings" description="Kontrol perusahaan, payroll, workflow, rekening, dan akses pengguna." />
+    <div className="grid gap-5 xl:grid-cols-2">
+      <Card id="account"><CardHeader><CardTitle>Profile saya</CardTitle></CardHeader><CardContent><form action={updateMyProfile} className="grid gap-3 sm:grid-cols-2"><Field label="Nama"><input name="name" defaultValue={profile.name} required className={field} /></Field><Field label="Email"><input value={profile.email} disabled className={`${field} bg-muted text-muted-foreground`} /></Field><Field label="Departemen"><input name="department" defaultValue={profile.department ?? ""} className={field} /></Field><div className="flex items-end"><button className={save}>Simpan profile</button></div></form></CardContent></Card>
 
-  return (
-    <div>
-      <PageHeader
-        title="Settings"
-        description="Company, payroll rules, approval workflow, banks, roles, and users."
-      />
+      <Card><CardHeader><CardTitle>Perusahaan & payroll</CardTitle></CardHeader><CardContent>{canManage && settings ? <form action={updateCompanySettings} className="grid gap-3 sm:grid-cols-2"><input type="hidden" name="companyId" value={companyId} /><Field label="Nama perusahaan"><input name="name" defaultValue={settings.name} required className={field} /></Field><Field label="Legal name"><input name="legalName" defaultValue={settings.legalName === "—" ? "" : settings.legalName} className={field} /></Field><Field label="NPWP"><input name="npwp" defaultValue={settings.npwp === "—" ? "" : settings.npwp} className={field} /></Field><Field label="Alamat"><input name="address" defaultValue={settings.address === "—" ? "" : settings.address} className={field} /></Field><Field label="Tanggal pembayaran"><input name="payDay" type="number" min="1" max="31" defaultValue={settings.payDay} className={field} /></Field><Field label="Mata uang"><input name="currency" minLength={3} maxLength={3} defaultValue={settings.currency} className={field} /></Field><Field label="Model pendanaan"><select name="defaultFundingModel" defaultValue={settings.defaultFundingModel} className={field}><option value="SELF_FUNDED">Client-funded</option><option value="WORKING_CAPITAL">Working capital</option></select></Field><label className="flex items-center gap-2 pt-7 text-sm font-medium"><input type="checkbox" name="fundingEnabled" defaultChecked={settings.fundingEnabled} /> Fasilitas pendanaan aktif</label><div className="sm:col-span-2"><button className={save}>Simpan pengaturan</button></div></form> : <p className="text-sm text-muted-foreground">Hanya Director atau Super Admin yang dapat mengubah pengaturan perusahaan.</p>}</CardContent></Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card id="account">
-          <CardHeader><CardTitle>My account</CardTitle></CardHeader>
-          <CardContent>
-            <form action={updateMyProfile} className="grid gap-3">
-              <label className="grid gap-1 text-sm font-medium">Nama<input name="name" defaultValue={profile.name} required minLength={2} maxLength={120} className="h-10 rounded-lg border border-border px-3" /></label>
-              <label className="grid gap-1 text-sm font-medium">Email<input value={profile.email} disabled className="h-10 rounded-lg border border-border bg-muted px-3 text-muted-foreground" /></label>
-              <label className="grid gap-1 text-sm font-medium">Departemen<input name="department" defaultValue={profile.department ?? ""} maxLength={120} className="h-10 rounded-lg border border-border px-3" /></label>
-              <button type="submit" className="h-10 rounded-xl bg-navy px-4 text-sm font-semibold text-white">Simpan profil</button>
-            </form>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Company</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {canManageCompany && companySettings ? <form action={updateCompanySettings} className="grid gap-3"><input type="hidden" name="companyId" value={companySettings.id} /><label className="grid gap-1">Name<input name="name" defaultValue={settings.name} required className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">Legal name<input name="legalName" defaultValue={settings.legalName === "—" ? "" : settings.legalName} className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">NPWP<input name="npwp" defaultValue={settings.npwp === "—" ? "" : settings.npwp} className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">Address<input name="address" defaultValue={settings.address === "—" ? "" : settings.address} className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">Funding model<select name="defaultFundingModel" defaultValue={settings.defaultFundingModel} className="h-9 rounded-lg border border-border px-3"><option value="SELF_FUNDED">Client-funded</option><option value="WORKING_CAPITAL">Working capital</option></select></label><label className="flex items-center gap-2"><input type="checkbox" name="fundingEnabled" defaultChecked={settings.fundingEnabled} /> Funding facility enabled</label><button type="submit" className="h-10 rounded-xl bg-navy px-4 text-sm font-semibold text-white">Simpan perusahaan</button></form> : <><Row label="Name" value={settings.name} /><Row label="Legal" value={settings.legalName} /><Row label="NPWP" value={settings.npwp} /><Row label="Address" value={settings.address} /><p className="text-xs text-muted-foreground">Pengaturan perusahaan dikelola oleh Super Admin atau Director.</p></>}
-          </CardContent>
-        </Card>
+      <Card><CardHeader><CardTitle>Approval workflow</CardTitle></CardHeader><CardContent className="space-y-3">{rules.map((rule) => <form key={rule.id} action={saveApprovalRule} className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-2"><input type="hidden" name="companyId" value={companyId} /><input type="hidden" name="id" value={rule.id} /><div className="sm:col-span-2 flex items-center gap-2"><Badge variant="outline">L{rule.level}</Badge><span className="text-sm font-semibold">{rule.name}</span></div>{canManage ? <><Field label="Nama"><input name="name" defaultValue={rule.name} className={field} /></Field><Field label="Level"><input name="level" type="number" min="1" max="10" defaultValue={rule.level} className={field} /></Field><Field label="Role"><select name="role" defaultValue={rule.role} className={field}><RoleOptions /></select></Field><label className="flex items-center gap-2 pt-7 text-sm"><input name="isActive" type="checkbox" defaultChecked={rule.isActive} /> Aktif</label><button className={save}>Simpan</button><button formAction={deleteApprovalRule} className="text-sm font-semibold text-red-600">Hapus</button></> : <p className="text-sm text-muted-foreground sm:col-span-2">{rule.role.replaceAll("_", " ")} · {rule.isActive ? "Aktif" : "Nonaktif"}</p>}</form>)}{canManage ? <form action={saveApprovalRule} className="grid gap-2 rounded-xl border border-dashed border-primary/40 p-3 sm:grid-cols-2"><input type="hidden" name="companyId" value={companyId} /><p className="sm:col-span-2 text-sm font-semibold text-primary">Tambah level approval</p><Field label="Nama"><input name="name" required className={field} /></Field><Field label="Level"><input name="level" type="number" min="1" max="10" required className={field} /></Field><Field label="Role"><select name="role" className={field}><RoleOptions /></select></Field><div className="flex items-end"><button className={save}>Tambah</button></div></form> : null}</CardContent></Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Payroll rules</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Default pay day" value={`Day ${settings.payDay}`} />
-            <Row label="Currency" value={settings.currency} />
-            <Row
-              label="Default funding model"
-              value={
-                settings.defaultFundingModel === "SELF_FUNDED"
-                  ? "Client-funded"
-                  : "Working capital"
-              }
-            />
-            <Row
-              label="Funding facility enabled"
-              value={settings.fundingEnabled ? "Yes" : "No"}
-            />
-            <p className="text-xs text-muted-foreground">
-              Client-funded is the default payroll path. Working capital is
-              optional per period and never forced.
-            </p>
-          </CardContent>
-        </Card>
+      <Card><CardHeader><CardTitle>Rekening bank</CardTitle></CardHeader><CardContent className="space-y-3">{banks.map((bank) => <form key={bank.id} action={saveBankAccount} className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-2"><input type="hidden" name="companyId" value={companyId} /><input type="hidden" name="id" value={bank.id} /><div className="sm:col-span-2 flex items-center gap-2"><Badge variant={bank.isPrimary ? "default" : "secondary"}>{bank.isPrimary ? "Utama" : "Rekening"}</Badge><span className="text-sm font-semibold">{bank.label}</span><span className="text-xs text-muted-foreground">{bank.maskedAccountNumber}</span></div>{canManage ? <><Field label="Label"><input name="label" defaultValue={bank.label} className={field} /></Field><Field label="Bank"><input name="bank" defaultValue={bank.bank} className={field} /></Field><Field label="Nama pemilik"><input name="accountName" defaultValue={bank.accountName ?? ""} className={field} /></Field><Field label="Nomor rekening"><input name="account" defaultValue={bank.account} className={field} /></Field><Field label="Tujuan"><select name="purpose" defaultValue={bank.purpose} className={field}>{purposes.map((p) => <option key={p}>{p}</option>)}</select></Field><label className="flex items-center gap-2 pt-7 text-sm"><input name="isPrimary" type="checkbox" defaultChecked={bank.isPrimary} /> Rekening utama</label><button className={save}>Simpan</button><button formAction={deleteBankAccount} className="text-sm font-semibold text-red-600">Hapus</button></> : null}</form>)}{canManage ? <form action={saveBankAccount} className="grid gap-2 rounded-xl border border-dashed border-primary/40 p-3 sm:grid-cols-2"><input type="hidden" name="companyId" value={companyId} /><p className="sm:col-span-2 text-sm font-semibold text-primary">Tambah rekening</p><Field label="Label"><input name="label" required className={field} /></Field><Field label="Bank"><input name="bank" required className={field} /></Field><Field label="Nama pemilik"><input name="accountName" className={field} /></Field><Field label="Nomor rekening"><input name="account" required className={field} /></Field><Field label="Tujuan"><select name="purpose" className={field}>{purposes.map((p) => <option key={p}>{p}</option>)}</select></Field><div className="flex items-end"><button className={save}>Tambah</button></div></form> : null}</CardContent></Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Approval workflow</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {settings.approvalLevels.map((level, index) => (
-              <div
-                key={level}
-                className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
-              >
-                <Badge variant="outline">L{index + 1}</Badge>
-                {level}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank accounts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {settings.bankAccounts.length === 0 ? (
-              <p className="text-muted-foreground">No bank accounts configured.</p>
-            ) : null}
-            {settings.bankAccounts.map((bank) => (
-              <div
-                key={bank.account}
-                className="rounded-lg border border-border p-3"
-              >
-                <p className="font-medium">{bank.label}</p>
-                <p className="text-muted-foreground">
-                  {bank.bank} · {bank.account}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Users & roles (RBAC)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
-                    <th className="px-2 py-2">Name</th>
-                    <th className="px-2 py-2">Email</th>
-                    <th className="px-2 py-2">Role</th>
-                    <th className="px-2 py-2">Department</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="px-2 py-2.5 font-medium">{user.name}</td>
-                      <td className="px-2 py-2.5 text-muted-foreground">
-                        {user.email}
-                      </td>
-                      <td className="px-2 py-2.5">
-                        <Badge variant="secondary">
-                          {user.role.replaceAll("_", " ")}
-                        </Badge>
-                      </td>
-                      <td className="px-2 py-2.5 text-muted-foreground">
-                        {user.department ?? "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Architecture supports RBAC, MFA, and session timeout (8h JWT max
-              age configured). Users are stored in Supabase; Auth.js issues JWT
-              sessions.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="xl:col-span-2"><CardHeader><CardTitle>Users & roles</CardTitle></CardHeader><CardContent className="space-y-3">{canManage ? <form action={saveUser} className="grid gap-2 rounded-xl border border-dashed border-primary/40 p-3 md:grid-cols-3"><p className="md:col-span-3 text-sm font-semibold text-primary">Tambah user</p><Field label="Nama"><input name="name" required className={field} /></Field><Field label="Email"><input name="email" type="email" required className={field} /></Field><Field label="Password awal"><input name="password" type="password" minLength={10} required className={field} /></Field><Field label="Departemen"><input name="department" className={field} /></Field><Field label="Role"><select name="role" className={field}><RoleOptions /></select></Field><div className="flex items-end"><button className={save}>Buat user</button></div></form> : null}<div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm"><thead><tr className="border-b border-border text-left text-xs uppercase text-muted-foreground"><th className="p-2">Nama</th><th className="p-2">Email</th><th className="p-2">Role</th><th className="p-2">Departemen</th><th className="p-2">Aksi</th></tr></thead><tbody>{users.map((user) => <tr key={user.id} className="border-b border-border align-top"><td className="p-2 font-medium">{user.name}</td><td className="p-2 text-muted-foreground">{user.email}</td><td className="p-2"><Badge variant="secondary">{user.role.replaceAll("_", " ")}</Badge></td><td className="p-2 text-muted-foreground">{user.department ?? "—"}</td><td className="p-2">{canManage ? <form action={saveUser} className="grid min-w-[230px] gap-2"><input type="hidden" name="id" value={user.id} /><input name="name" defaultValue={user.name} className={field} /><input name="email" defaultValue={user.email} className={field} /><input name="department" defaultValue={user.department ?? ""} placeholder="Departemen" className={field} /><select name="role" defaultValue={user.role} className={field}><RoleOptions /></select><button className={save}>Simpan</button><button formAction={deleteUser} className="text-left text-xs font-semibold text-red-600">Hapus user</button></form> : "—"}</td></tr>)}</tbody></table></div></CardContent></Card>
     </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 border-b border-border py-2 last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
-    </div>
-  );
+  </div>;
 }

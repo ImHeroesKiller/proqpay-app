@@ -415,6 +415,8 @@ model Company {
   actualManagedPayroll    Decimal?                     @map("actual_managed_payroll") @db.Decimal(18, 2)
   defaultFundingModel     PayrollFundingModel          @default(SELF_FUNDED) @map("default_funding_model")
   fundingEnabled          Boolean                      @default(true) @map("funding_enabled")
+  payDay                  Int                          @default(5) @map("pay_day")
+  currency                String                       @default("IDR")
   workingCapitalLimit     Decimal?                     @map("working_capital_limit") @db.Decimal(18, 2)
   workingCapitalStatus    WorkingCapitalFacilityStatus @default(NOT_ENABLED) @map("working_capital_status")
   goLiveDate              DateTime?                    @map("go_live_date") @db.Date
