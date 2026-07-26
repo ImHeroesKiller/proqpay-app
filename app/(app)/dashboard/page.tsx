@@ -5,7 +5,7 @@ import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { BusinessInsightPanel } from "@/components/dashboard/business-insight-panel";
 import { ClientPayrollTable } from "@/components/dashboard/client-payroll-table";
-import { EmployeeDistributionCard } from "@/components/dashboard/employee-distribution-card";
+import { InteractiveIndonesiaMap } from "@/components/dashboard/interactive-indonesia-map";
 import { PaymentStatusCard } from "@/components/dashboard/payment-status-card";
 import { ComponentCostCard } from "@/components/dashboard/component-cost-card";
 import { KpiCard } from "@/components/shared/kpi-card";
@@ -120,7 +120,7 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-[1480px] space-y-4">
       <section
         className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]"
-        aria-label="Dashboard bento"
+        aria-label="Dashboard utama"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -128,8 +128,8 @@ export default async function DashboardPage() {
               <KpiCard key={item.label} item={item} />
             ))}
           </div>
-          <div className="grid gap-4 lg:grid-cols-[1.2fr_1.35fr_.95fr]">
-            <Card className="min-w-0 border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
+          <div className="grid gap-4 lg:grid-cols-[1.25fr_.9fr]">
+            <Card className="min-w-0 border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)] lg:h-[290px]">
               <CardHeader className="p-5 pb-3">
                 <CardTitle className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
                   Payroll by Client / Project
@@ -139,42 +139,48 @@ export default async function DashboardPage() {
                 </p>
               </CardHeader>
               <CardContent className="p-5 pt-0">
-                <ClientPayrollTable rows={clientRows} />
+                <ClientPayrollTable rows={clientRows} maxRows={3} />
               </CardContent>
             </Card>
-            <EmployeeDistributionCard headcount={headcount} />
-            <PaymentStatusCard total={Number(bruto)} failed={failedPayments} />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-[1.15fr_1.1fr_.9fr]">
-            <Card className="border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
-              <CardHeader className="p-5 pb-3">
-                <CardTitle className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
-                  Aktivitas Terbaru
-                </CardTitle>
-                <p className="text-[11px] text-muted-foreground">
-                  Ringkasan aktivitas operasional
-                </p>
-              </CardHeader>
-              <CardContent className="max-h-[265px] overflow-y-auto p-5 pt-0">
-                <ActivityTimeline items={auditLogs.slice(0, 5)} />
-              </CardContent>
-            </Card>
-            <ComponentCostCard total={Number(bruto)} />
-            <AttentionCenter alerts={dashboardAlerts} />
+            <div className="lg:h-[290px]">
+              <PaymentStatusCard
+                total={Number(bruto)}
+                failed={failedPayments}
+              />
+            </div>
           </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          <BusinessInsightPanel initial={initialIntelligence} />
-          <div className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
-            <h2 className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
-              Aksi Cepat
-            </h2>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Akses pekerjaan payroll yang paling sering digunakan.
+        <BusinessInsightPanel initial={initialIntelligence} />
+      </section>
+      <InteractiveIndonesiaMap headcount={headcount} />
+      <section
+        aria-label="Data operasional pendukung"
+        className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_1.1fr_.9fr_1.05fr]"
+      >
+        <Card className="border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
+          <CardHeader className="p-5 pb-3">
+            <CardTitle className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
+              Aktivitas Terbaru
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              Ringkasan aktivitas operasional
             </p>
-            <div className="mt-3">
-              <QuickActions />
-            </div>
+          </CardHeader>
+          <CardContent className="max-h-[250px] overflow-y-auto p-5 pt-0">
+            <ActivityTimeline items={auditLogs.slice(0, 5)} />
+          </CardContent>
+        </Card>
+        <ComponentCostCard total={Number(bruto)} />
+        <AttentionCenter alerts={dashboardAlerts} />
+        <div className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
+          <h2 className="text-[12px] font-bold uppercase tracking-[0.06em] text-navy">
+            Aksi Cepat
+          </h2>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Akses pekerjaan payroll yang paling sering digunakan.
+          </p>
+          <div className="mt-3">
+            <QuickActions />
           </div>
         </div>
       </section>
