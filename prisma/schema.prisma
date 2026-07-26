@@ -538,6 +538,8 @@ model Company {
   source                    String?
   goLiveDate                DateTime?                    @map("go_live_date") @db.Date
   internalNotes             String?                      @map("internal_notes")
+  payDay                    Int?                         @map("pay_day")
+  currency                  String?                      @default("IDR")
   createdAt                 DateTime                     @default(now()) @map("created_at")
   updatedAt                 DateTime                     @updatedAt @map("updated_at")
   organization              Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
