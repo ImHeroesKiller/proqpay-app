@@ -44,7 +44,15 @@ export async function uploadImportBatch(input: {
     };
   }
 
-  const { template, rows } = await parseImportExcel(buffer, input.templateCode);
+  if (!input.companyId && !scope.companyId) {
+    return {
+      ok: false as const,
+      error: "Pilih client tujuan sebelum IDA memproses dan menyimpan batch.",
+    };
+  }
+  const selectedCompanyId = input.companyId ?? scope.companyId!;
+  const { template, rows, idaSummary, mappingSource } =
+    await parseImportExcel(buffer, input.templateCode);
   const templateColumns = JSON.parse(JSON.stringify(template.columns));
   const existingTemplate = await prisma.importTemplate.findFirst({
     where: { companyId: null, code: input.templateCode, version: 1 },
@@ -63,17 +71,42 @@ export async function uploadImportBatch(input: {
   });
 
   const employees = await prisma.employee.findMany({
+    where: { companyId: selectedCompanyId },
     select: { employeeCode: true, bankAccount: true },
     take: 5000,
   });
   const projects = await prisma.project.findMany({
+    where: { companyId: selectedCompanyId },
     select: { code: true },
     take: 2000,
   });
+  const selectedCompany = await prisma.company.findUnique({
+    where: { id: selectedCompanyId },
+    select: { id: true, name: true },
+  });
+  if (!selectedCompany) {
+    return {
+      ok: false as const,
+      error: "Client tidak ditemukan. Tambahkan client baru melalui Settings > Clients.",
+    };
+  }
+  const clientAliases = new Set([
+    selectedCompany.id.toLowerCase(),
+    selectedCompany.name.toLowerCase(),
+    selectedCompany.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    selectedCompany.name
+      .replace(/\b(pt|cv|tbk|persero)\b/gi, "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join("")
+      .toLowerCase(),
+  ]);
 
   const validated = validateRows(template, rows, {
     existingEmployeeCodes: new Set(employees.map((e) => e.employeeCode)),
     projectCodes: new Set(projects.map((p) => p.code)),
+    clientCodes: clientAliases,
     bankAccounts: new Set(employees.map((e) => e.bankAccount)),
   });
 
@@ -86,7 +119,7 @@ export async function uploadImportBatch(input: {
     await tx.importBatch.create({
       data: {
         id: batchId,
-        companyId: input.companyId ?? scope.companyId ?? (await tx.company.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } }))?.id ?? (() => { throw new Error("Client/perusahaan belum tersedia"); })(),
+        companyId: selectedCompanyId,
         templateId: templateMeta.id,
         templateCode: input.templateCode,
         templateVersion: String(template.version),
@@ -97,6 +130,7 @@ export async function uploadImportBatch(input: {
         validRows,
         errorRows,
         warningRows,
+        errorSummary: `[IDA:${mappingSource}] ${idaSummary}`,
         uploadedBy: scope.userId,
       },
     });
@@ -147,6 +181,8 @@ export async function uploadImportBatch(input: {
     validRows,
     errorRows,
     warningRows,
+    idaSummary,
+    mappingSource,
   };
 }
 
@@ -402,4 +438,19 @@ export async function listImportBatches() {
 
 export async function listImportTemplateMeta() {
   return (await import("@/lib/import/templates")).IMPORT_TEMPLATES;
+}
+
+export async function listImportCompanies() {
+  const scope = await requireSession();
+  return prisma.company.findMany({
+    where:
+      scope.role === "SUPER_ADMIN" ||
+      (scope.role === "DIRECTOR" && !scope.companyId)
+        ? scope.organizationId
+          ? { organizationId: scope.organizationId }
+          : {}
+        : { id: scope.companyId ?? "00000000-0000-0000-0000-000000000000" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 }

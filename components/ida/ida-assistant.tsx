@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bot,
   Download,
@@ -85,6 +86,7 @@ function answerFor(input: string): { text: string; href?: string; action?: strin
 }
 
 export function IdaAssistant() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -95,6 +97,7 @@ export function IdaAssistant() {
     },
   ]);
   const [lastAction, setLastAction] = useState<ReturnType<typeof answerFor> | null>(null);
+  const [thinking, setThinking] = useState(false);
 
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -104,23 +107,52 @@ export function IdaAssistant() {
 
   const nextId = useMemo(() => messages.length + 1, [messages.length]);
 
-  function submit(text: string) {
+  async function submit(text: string) {
     const trimmed = text.trim();
-    if (!trimmed) return;
-    const answer = answerFor(trimmed);
+    if (!trimmed || thinking) return;
     setMessages((current) => [
       ...current,
       { id: nextId, role: "user", text: trimmed },
-      { id: nextId + 1, role: "ida", text: answer.text },
     ]);
-    setLastAction(answer);
     setInput("");
     setOpen(true);
+    setThinking(true);
+    try {
+      const response = await fetch("/api/ida/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: trimmed, pathname }),
+      });
+      const result = (await response.json()) as {
+        reply?: string;
+        href?: string;
+        action?: string;
+      };
+      if (!response.ok || !result.reply) throw new Error("IDA unavailable");
+      setMessages((current) => [
+        ...current,
+        { id: nextId + 1, role: "ida", text: result.reply! },
+      ]);
+      setLastAction({
+        text: result.reply,
+        href: result.href,
+        action: result.action,
+      });
+    } catch {
+      const fallback = answerFor(trimmed);
+      setMessages((current) => [
+        ...current,
+        { id: nextId + 1, role: "ida", text: fallback.text },
+      ]);
+      setLastAction(fallback);
+    } finally {
+      setThinking(false);
+    }
   }
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    submit(input);
+    void submit(input);
   }
 
   return (
@@ -184,7 +216,7 @@ export function IdaAssistant() {
                 <button
                   key={label}
                   type="button"
-                  onClick={() => submit(prompt)}
+                  onClick={() => void submit(prompt)}
                   className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-left text-xs font-semibold text-navy shadow-sm hover:border-blue-300 hover:bg-blue-50"
                 >
                   <Icon className="h-4 w-4 text-blue-600" />
@@ -209,6 +241,13 @@ export function IdaAssistant() {
                 </div>
               </div>
             ))}
+            {thinking ? (
+              <div className="flex justify-start">
+                <div className="rounded-2xl rounded-bl-md border bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                  IDA sedang menganalisis…
+                </div>
+              </div>
+            ) : null}
             {lastAction?.href ? (
               <Button asChild className="w-full rounded-xl bg-navy text-white hover:bg-navy/90">
                 <Link href={lastAction.href}>{lastAction.action ?? "Buka Modul"}</Link>
@@ -224,7 +263,7 @@ export function IdaAssistant() {
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    submit(input);
+                    void submit(input);
                   }
                 }}
                 rows={2}

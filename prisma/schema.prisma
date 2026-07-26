@@ -588,6 +588,7 @@ model Company {
   notifications             AppNotification[]
   importBatches             ImportBatch[]
   payrollSchemeConversations PayrollSchemeConversation[]
+  bankFileTemplates          BankFileTemplate[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -968,6 +969,8 @@ model PaymentInstruction {
   submittedAt          DateTime?                 @map("submitted_at")
   executedAt           DateTime?                 @map("executed_at")
   failureReason        String?                   @map("failure_reason")
+  bankTemplateId       String?                   @map("bank_template_id") @db.Uuid
+  exportBankCode       String?                   @map("export_bank_code")
   version              Int                       @default(1)
   createdAt            DateTime                  @default(now()) @map("created_at")
   updatedAt            DateTime                  @updatedAt @map("updated_at")
@@ -977,12 +980,37 @@ model PaymentInstruction {
   generatedBy          User?                     @relation("InstructionGeneratedBy", fields: [generatedById], references: [id], onDelete: SetNull)
   items                PaymentInstructionItem[]
   confirmations        PaymentConfirmation[]
+  bankTemplate         BankFileTemplate?         @relation(fields: [bankTemplateId], references: [id], onDelete: SetNull)
 
   @@unique([companyId, instructionNumber])
   @@index([companyId])
   @@index([payrollPeriodId])
   @@index([executionStatus])
   @@map("payment_instructions")
+  @@schema("proqpay")
+}
+
+model BankFileTemplate {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  bankCode        String   @map("bank_code")
+  name            String
+  version         Int      @default(1)
+  fileType        String   @default("CSV") @map("file_type")
+  delimiter       String   @default(",")
+  sheetName       String?  @map("sheet_name")
+  columnsJson     Json     @default("[]") @map("columns_json")
+  mappingJson     Json     @default("{}") @map("mapping_json")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  instructions    PaymentInstruction[]
+
+  @@unique([companyId, bankCode, version])
+  @@index([companyId, bankCode, isActive])
+  @@map("bank_file_templates")
   @@schema("proqpay")
 }
 
@@ -2016,6 +2044,7 @@ model ClientBillingProfile {
   currency         String          @default("IDR")
   taxConfiguration String?         @map("tax_configuration")
   notes            String?
+  paymentMode      String          @default("REIMBURSEMENT") @map("payment_mode")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
   company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)

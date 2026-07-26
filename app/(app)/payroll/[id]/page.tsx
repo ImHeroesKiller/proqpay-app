@@ -59,7 +59,11 @@ export default async function PayrollDetailPage({
       />
 
       <div className="mb-4">
-        <PayrollPeriodActions periodId={period.id} status={period.status} />
+        <PayrollPeriodActions
+          periodId={period.id}
+          status={period.status}
+          companyId={period.companyId}
+        />
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">

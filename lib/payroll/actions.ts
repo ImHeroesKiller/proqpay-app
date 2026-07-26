@@ -392,6 +392,7 @@ export async function generatePayslips(scope: SessionScope, periodId: string) {
 export async function generatePaymentInstruction(
   scope: SessionScope,
   periodId: string,
+  bankCode: "BCA" | "MANDIRI" | "BRI" | "CUSTOM",
 ) {
   const period = await prisma.payrollPeriod.findUnique({
     where: { id: periodId },
@@ -405,8 +406,21 @@ export async function generatePaymentInstruction(
     throw new Error("Period must be APPROVED before generating instruction");
   }
 
+  const bankTemplate = await prisma.bankFileTemplate.findFirst({
+    where: { companyId: period.companyId, bankCode, isActive: true },
+    orderBy: { version: "desc" },
+  });
+  if (!bankTemplate) {
+    throw new Error(`BANK_TEMPLATE_REQUIRED:${bankCode}`);
+  }
   const bank = await prisma.bankAccount.findFirst({
-    where: { companyId: period.companyId, purpose: "CLIENT_PAYROLL_SOURCE" },
+    where: {
+      companyId: period.companyId,
+      purpose: "CLIENT_PAYROLL_SOURCE",
+      ...(bankCode === "CUSTOM"
+        ? {}
+        : { bank: { contains: bankCode, mode: "insensitive" } }),
+    },
   });
 
   const executionModel =
@@ -442,6 +456,8 @@ export async function generatePaymentInstruction(
         executionStatus: "READY",
         generatedById: scope.userId,
         generatedAt: new Date(),
+        bankTemplateId: bankTemplate.id,
+        exportBankCode: bankCode,
         version: 1,
       },
     });

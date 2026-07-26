@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { issueInvoiceAfterPaymentInstruction } from "@/lib/billing/service";
 import type { SessionScope } from "@/lib/auth/scope";
 import { companyWhere } from "@/lib/auth/scope";
 import { maskAccount } from "@/lib/data/mappers";
@@ -428,6 +429,17 @@ export async function verifyPaymentConfirmation(input: {
           paymentInstructionStatus: "EXECUTED",
         },
       });
+      await tx.paymentInstruction.update({
+        where: { id: row.paymentInstructionId },
+        data: {
+          executionStatus: "EXECUTED",
+          executedAt: new Date(),
+        },
+      });
+      await tx.paymentInstructionItem.updateMany({
+        where: { paymentInstructionId: row.paymentInstructionId },
+        data: { status: "EXECUTED", executedAt: new Date() },
+      });
       if (!isWc) {
         // Client self-transfer closed after verification
       } else {
@@ -484,6 +496,13 @@ export async function verifyPaymentConfirmation(input: {
       });
     }
   });
+
+  if (input.decision === "VERIFIED") {
+    await issueInvoiceAfterPaymentInstruction(
+      input.scope,
+      row.payrollPeriodId,
+    );
+  }
 
   const notifType =
     input.decision === "VERIFIED"

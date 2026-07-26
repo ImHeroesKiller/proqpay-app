@@ -38,6 +38,7 @@ export function validateRows(
   ctx: {
     employeeCodes?: Set<string>;
     projectCodes?: Set<string>;
+    clientCodes?: Set<string>;
     existingEmployeeCodes?: Set<string>;
     bankAccounts?: Set<string>;
   } = {},
@@ -117,6 +118,12 @@ export function validateRows(
       if (!ctx.projectCodes.has(d.project_code)) {
         errors.push("Kode project tidak ditemukan");
       }
+    }
+
+    if (d.client_code && ctx.clientCodes && !ctx.clientCodes.has(d.client_code.trim().toLowerCase())) {
+      errors.push(
+        "Client belum terdaftar. Tambahkan client baru melalui Settings > Clients sebelum commit.",
+      );
     }
 
     if (d.bank_account) {
