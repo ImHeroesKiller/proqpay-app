@@ -954,6 +954,7 @@ model PaymentInstruction {
   payrollPeriodId      String                    @map("payroll_period_id") @db.Uuid
   instructionNumber    String                    @map("instruction_number")
   fundingModel         PayrollFundingModel       @map("funding_model")
+  executionModel       PaymentExecutionModel     @default(CLIENT_SELF_TRANSFER) @map("execution_model")
   executionType        PaymentExecutionType      @map("execution_type")
   integrationStatus    BankingIntegrationStatus  @default(SIMULATED) @map("integration_status")
   sourceBankAccountId  String?                   @map("source_bank_account_id") @db.Uuid
