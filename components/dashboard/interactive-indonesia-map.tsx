@@ -258,3 +258,17 @@ export function InteractiveIndonesiaMap({
         </div>
       </div>
       <p className="border-t border-slate-100 px-5 py-2.5 text-[10px] text-muted-foreground">
+        Data wilayah:{" "}
+        <a
+          className="pointer-events-auto underline hover:text-navy"
+          href="https://github.com/indrayoga/data-wilayah-indonesia"
+          target="_blank"
+          rel="noreferrer"
+        >
+          indrayoga/data-wilayah-indonesia
+        </a>{" "}
+        · Kepmendagri 2025 · Peta © OpenStreetMap contributors
+      </p>
+    </section>
+  );
+}
