@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Map, MapPin, MousePointer2 } from "lucide-react";
 import { indonesiaProvinces } from "@/lib/data/indonesia-provinces";
+import { MapEmployeeExplorer, type MapEmployeeRow } from "@/components/dashboard/map-employee-explorer";
 
-type InteractiveIndonesiaMapProps = { headcount: number };
+type InteractiveIndonesiaMapProps = {
+  headcount: number;
+  employees: MapEmployeeRow[];
+};
 type LeafletMap = {
   remove: () => void;
   flyTo: (
@@ -89,7 +93,6 @@ const regionPoints = [
   {
     id: "sumatera",
     label: "Sumatera",
-    share: 0.14,
     lat: 0.6,
     lng: 101.3,
     province: "Riau",
@@ -98,7 +101,6 @@ const regionPoints = [
   {
     id: "jawa",
     label: "Jawa",
-    share: 0.54,
     lat: -7.4,
     lng: 110.2,
     province: "Jawa Tengah",
@@ -107,7 +109,6 @@ const regionPoints = [
   {
     id: "kalimantan",
     label: "Kalimantan",
-    share: 0.1,
     lat: -0.4,
     lng: 113.6,
     province: "Kalimantan Tengah",
@@ -116,7 +117,6 @@ const regionPoints = [
   {
     id: "sulawesi",
     label: "Sulawesi",
-    share: 0.12,
     lat: -1.2,
     lng: 121.2,
     province: "Sulawesi Tengah",
@@ -125,7 +125,6 @@ const regionPoints = [
   {
     id: "bali",
     label: "Bali & Nusa Tenggara",
-    share: 0.06,
     lat: -8.5,
     lng: 116.8,
     province: "Bali",
@@ -134,7 +133,6 @@ const regionPoints = [
   {
     id: "papua",
     label: "Maluku & Papua",
-    share: 0.04,
     lat: -3.8,
     lng: 137.2,
     province: "Papua",
@@ -142,27 +140,22 @@ const regionPoints = [
   },
 ] as const;
 
-function distribution(total: number) {
-  return regionPoints.map((point, index) =>
-    index === regionPoints.length - 1
-      ? Math.max(
-          total -
-            regionPoints
-              .slice(0, -1)
-              .reduce((sum, item) => sum + Math.round(total * item.share), 0),
-          0,
-        )
-      : Math.round(total * point.share),
-  );
-}
-
 export function InteractiveIndonesiaMap({
   headcount,
+  employees,
 }: InteractiveIndonesiaMapProps) {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const [province, setProvince] = useState("Jawa Tengah");
-  const counts = useMemo(() => distribution(headcount), [headcount]);
+  const [region, setRegion] = useState("Jawa");
+  const counts = useMemo(
+    () =>
+      regionPoints.map(
+        (point) => employees.filter((employee) => employee.region === point.label).length,
+      ),
+    [employees],
+  );
+
   useEffect(() => {
     let disposed = false;
     async function createMap() {
@@ -192,7 +185,10 @@ export function InteractiveIndonesiaMap({
           `<strong>${point.label}</strong><br/>${counts[index]} karyawan`,
           { closeButton: false, offset: [0, -14] },
         );
-        marker.on("click", () => setProvince(point.province));
+        marker.on("click", () => {
+          setProvince(point.province);
+          setRegion(point.label);
+        });
       });
     }
     createMap();
@@ -202,73 +198,69 @@ export function InteractiveIndonesiaMap({
       mapRef.current = null;
     };
   }, [counts]);
+
   useEffect(() => {
     const point = regionPoints.find((item) => item.province === province);
+    if (point) setRegion(point.label);
     mapRef.current?.flyTo(
       point ? [point.lat, point.lng] : [-2.5, 118],
       point ? 5.6 : 4.3,
       { duration: 0.75 },
     );
   }, [province]);
+
   return (
-    <section
-      className="overflow-hidden rounded-[20px] border border-slate-100 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.055)]"
-      aria-labelledby="map-title"
-    >
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Map className="h-4 w-4 text-violet-600" />
-            <h2
-              id="map-title"
-              className="text-[13px] font-bold uppercase tracking-[0.06em] text-navy"
-            >
-              Sebaran Karyawan Indonesia
-            </h2>
+    <div className="space-y-4">
+      <section
+        className="overflow-hidden rounded-[20px] border border-slate-100 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.055)]"
+        aria-labelledby="map-title"
+      >
+        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Map className="h-4 w-4 text-violet-600" />
+              <h2
+                id="map-title"
+                className="text-[13px] font-bold uppercase tracking-[0.06em] text-navy"
+              >
+                Sebaran Karyawan Indonesia
+              </h2>
+            </div>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Peta interaktif lokasi kerja · {headcount.toLocaleString("id-ID")} karyawan aktif
+            </p>
           </div>
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            Peta interaktif lokasi kerja · {headcount.toLocaleString("id-ID")}{" "}
-            karyawan aktif
-          </p>
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-navy">
+            <MapPin className="h-4 w-4 text-violet-600" />
+            <select
+              aria-label="Pilih provinsi pada peta"
+              value={province}
+              onChange={(event) => setProvince(event.target.value)}
+              className="max-w-[230px] bg-transparent outline-none"
+            >
+              <option value="">Pilih provinsi</option>
+              {indonesiaProvinces.map(([code, name]) => (
+                <option key={code} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-navy">
-          <MapPin className="h-4 w-4 text-violet-600" />
-          <select
-            aria-label="Pilih provinsi pada peta"
-            value={province}
-            onChange={(event) => setProvince(event.target.value)}
-            className="max-w-[230px] bg-transparent outline-none"
-          >
-            <option value="">Pilih provinsi</option>
-            {indonesiaProvinces.map(([code, name]) => (
-              <option key={code} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="relative h-[330px] bg-[#eef4f8]">
-        <div ref={mapNode} className="h-full w-full" />
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg bg-white/90 px-3 py-2 text-[11px] text-slate-600 shadow-sm backdrop-blur">
-          <span className="mr-1.5 inline-flex">
-            <MousePointer2 className="h-3.5 w-3.5 text-violet-600" />
-          </span>
-          Klik titik untuk detail wilayah
+        <div className="relative h-[330px] bg-[#eef4f8]">
+          <div ref={mapNode} className="h-full w-full" />
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg bg-white/90 px-3 py-2 text-[11px] text-slate-600 shadow-sm backdrop-blur">
+            <span className="mr-1.5 inline-flex">
+              <MousePointer2 className="h-3.5 w-3.5 text-violet-600" />
+            </span>
+            Klik titik untuk melihat daftar karyawan wilayah
+          </div>
         </div>
-      </div>
-      <p className="border-t border-slate-100 px-5 py-2.5 text-[10px] text-muted-foreground">
-        Data wilayah:{" "}
-        <a
-          className="pointer-events-auto underline hover:text-navy"
-          href="https://github.com/indrayoga/data-wilayah-indonesia"
-          target="_blank"
-          rel="noreferrer"
-        >
-          indrayoga/data-wilayah-indonesia
-        </a>{" "}
-        · Kepmendagri 2025 · Peta © OpenStreetMap contributors
-      </p>
-    </section>
+        <p className="border-t border-slate-100 px-5 py-2.5 text-[10px] text-muted-foreground">
+          Data wilayah: <a className="pointer-events-auto underline hover:text-navy" href="https://github.com/indrayoga/data-wilayah-indonesia" target="_blank" rel="noreferrer">indrayoga/data-wilayah-indonesia</a> · Kepmendagri 2025 · Peta © OpenStreetMap contributors
+        </p>
+      </section>
+      <MapEmployeeExplorer rows={employees} selectedRegion={region} />
+    </div>
   );
 }
