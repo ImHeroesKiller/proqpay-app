@@ -57,15 +57,11 @@ const actions: {
 export function QuickActions() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {actions.map((action, index) => {
+      {actions.map((action) => {
         const Icon = action.icon;
         return (
           <div
             key={action.href + action.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 * index }}
-            whileHover={{ y: -3 }}
           >
             <Link
               prefetch={false}
