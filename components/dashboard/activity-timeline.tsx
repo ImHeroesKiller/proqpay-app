@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import {
   CheckCircle2,
   FileText,
@@ -212,7 +209,7 @@ export function ActivityTimeline({ items }: { items: AuditLog[] }) {
         });
 
         return (
-          <motion.li
+          <li
             key={item.id}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -238,7 +235,7 @@ export function ActivityTimeline({ items }: { items: AuditLog[] }) {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{time}</p>
             </div>
-          </motion.li>
+          </li>
         );
       })}
     </ol>
