@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -134,6 +135,27 @@ export function ImportCenter({
         <div className="rounded-xl border border-border bg-white px-4 py-3 text-sm text-navy">
           {message}
         </div>
+      )}
+
+      {batches.some((batch) => batch.status === "COMMITTED") && (
+        <Card className="border-primary/20 bg-primary/[0.03] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-navy">Data sudah masuk ke proses payroll</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Lanjutkan validasi client/project, lalu konfirmasi skema remunerasi Indonesia bersama IDA.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/validation">Validasi data</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/scheme-builder">Payroll setup dengan IDA</Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
