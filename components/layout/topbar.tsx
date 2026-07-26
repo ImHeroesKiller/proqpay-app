@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Menu,
   LogOut,
   Bell,
   HelpCircle,
-  Search,
   ChevronDown,
   Building2,
+  UserRound,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useEnterpriseContext } from "@/components/context/enterprise-context";
 import type { ShellUser } from "@/components/layout/app-shell";
 
@@ -33,33 +33,14 @@ export function Topbar({
   onMenuClick?: () => void;
 }) {
   const [greet, setGreet] = useState("Selamat datang");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [loadingSearch, setLoadingSearch] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const router = useRouter();
+  const [accountOpen, setAccountOpen] = useState(false);
   const { projects, selection, setSelection, isLoading } = useEnterpriseContext();
 
   useEffect(() => {
     setGreet(greetingPrefix());
   }, []);
-
-  useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current); }, []);
-
-  function search(value: string) {
-    setQuery(value);
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    if (value.trim().length < 2) return setResults([]);
-    searchTimer.current = setTimeout(async () => {
-      setLoadingSearch(true);
-      try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(value)}`);
-        if (response.ok) setResults((await response.json()).results);
-      } finally { setLoadingSearch(false); }
-    }, 220);
-  }
 
   async function openNotifications() {
     const nextOpen = !notificationsOpen;
@@ -98,25 +79,6 @@ export function Topbar({
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <div className="relative hidden md:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Cari karyawan, payroll, invoice…"
-              className="h-10 w-[220px] rounded-xl border-border bg-[#F7F8FC] pl-9 text-sm lg:w-[280px]"
-              aria-label="Pencarian global"
-              value={query}
-              onChange={(event) => search(event.target.value)}
-            />
-            {(results.length > 0 || loadingSearch) && (
-              <div className="absolute right-0 top-12 z-50 w-[360px] rounded-xl border border-border bg-white p-2 shadow-lift">
-                {loadingSearch ? <p className="px-3 py-2 text-sm text-muted-foreground">Mencari…</p> : results.map((result) => (
-                  <button key={`${result.detail}-${result.id}`} type="button" className="block w-full rounded-lg px-3 py-2 text-left hover:bg-muted" onClick={() => { router.push(result.href); setQuery(""); setResults([]); }}>
-                    <span className="block text-sm font-medium text-navy">{result.label}</span><span className="text-xs text-muted-foreground">{result.detail}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
           <div className="relative">
           <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-xl" aria-label="Notifikasi" onClick={openNotifications}>
             <Bell className="h-5 w-5 text-navy/70" strokeWidth={1.85} />
@@ -141,7 +103,8 @@ export function Topbar({
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </label>
 
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-1.5 shadow-soft">
+          <div className="relative">
+          <button type="button" aria-label="Menu akun" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)} className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-1.5 shadow-soft transition hover:bg-muted">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white">
               {user.avatarInitials}
             </div>
@@ -151,22 +114,13 @@ export function Topbar({
                 {user.role.replaceAll("_", " ")}
               </p>
             </div>
+          </button>
+          {accountOpen ? <div className="absolute right-0 top-12 z-50 w-52 rounded-xl border border-border bg-white p-2 shadow-lift"><Link href="/settings#account" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-navy hover:bg-muted"><UserRound className="h-4 w-4" /> Profile</Link><Link href="/settings" onClick={() => setAccountOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-navy hover:bg-muted"><Settings className="h-4 w-4" /> Settings</Link><button type="button" onClick={() => signOut({ callbackUrl: "/login" })} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" /> Keluar</button></div> : null}
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden h-9 rounded-xl sm:inline-flex"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-          >
-            <LogOut className="h-3.5 w-3.5" strokeWidth={1.85} />
-            <span>Keluar</span>
-          </Button>
         </div>
       </div>
     </header>
   );
 }
 
-type SearchResult = { id: string; label: string; detail: string; href: string };
 type Notification = { id: string; title: string; body: string; readAt: string | null };
