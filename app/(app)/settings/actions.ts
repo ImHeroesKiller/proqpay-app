@@ -16,7 +16,7 @@ async function settingsAdmin() {
   const scope = await requireModule("settings");
   if (!["SUPER_ADMIN", "DIRECTOR"].includes(scope.role)) throw new Error("Hanya Super Admin atau Director yang dapat mengubah pengaturan.");
   if (!scope.organizationId) throw new Error("Organisasi pengguna tidak ditemukan.");
-  return scope;
+  return { ...scope, organizationId: scope.organizationId };
 }
 
 async function scopedCompany(companyId: string) {
