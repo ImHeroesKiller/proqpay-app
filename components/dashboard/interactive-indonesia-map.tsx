@@ -55,15 +55,16 @@ declare global {
 function loadLeaflet(): Promise<LeafletApi> {
   if (window.proqLeaflet) return Promise.resolve(window.proqLeaflet);
   return new Promise((resolve, reject) => {
-    const stylesheet =
-      document.querySelector("link[data-proq-leaflet]") ??
-      document.head.appendChild(
-        Object.assign(document.createElement("link"), {
-          rel: "stylesheet",
-          href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-          dataset: { proqLeaflet: "" },
-        }),
-      );
+    let stylesheet = document.querySelector<HTMLLinkElement>(
+      "link[data-proq-leaflet]",
+    );
+    if (!stylesheet) {
+      stylesheet = document.createElement("link");
+      stylesheet.rel = "stylesheet";
+      stylesheet.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      stylesheet.setAttribute("data-proq-leaflet", "");
+      document.head.appendChild(stylesheet);
+    }
     stylesheet.addEventListener(
       "error",
       () => reject(new Error("Leaflet stylesheet could not load")),
@@ -257,17 +258,3 @@ export function InteractiveIndonesiaMap({
         </div>
       </div>
       <p className="border-t border-slate-100 px-5 py-2.5 text-[10px] text-muted-foreground">
-        Data wilayah:{" "}
-        <a
-          className="pointer-events-auto underline hover:text-navy"
-          href="https://github.com/indrayoga/data-wilayah-indonesia"
-          target="_blank"
-          rel="noreferrer"
-        >
-          indrayoga/data-wilayah-indonesia
-        </a>{" "}
-        · Kepmendagri 2025 · Peta © OpenStreetMap contributors
-      </p>
-    </section>
-  );
-}
