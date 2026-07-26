@@ -129,8 +129,8 @@ export default async function DashboardPage() {
             ))}
           </div>
           <div className="grid gap-4 lg:grid-cols-[1.25fr_.9fr]">
-            <Card className="min-w-0 border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)] lg:h-[310px]">
-              <CardHeader className="p-5 pb-3">
+            <Card className="flex min-w-0 flex-col overflow-hidden border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)] lg:h-[310px]">
+              <CardHeader className="shrink-0 p-5 pb-3">
                 <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
                   Payroll by Client / Project
                 </CardTitle>
@@ -138,8 +138,8 @@ export default async function DashboardPage() {
                   Ringkasan bruto dan status per client
                 </p>
               </CardHeader>
-              <CardContent className="p-5 pt-0">
-                <ClientPayrollTable rows={clientRows} maxRows={3} />
+              <CardContent className="min-h-0 flex-1 overflow-auto p-5 pt-0">
+                <ClientPayrollTable rows={clientRows} />
               </CardContent>
             </Card>
             <div className="lg:h-[310px]">
@@ -152,13 +152,16 @@ export default async function DashboardPage() {
         </div>
         <BusinessInsightPanel initial={initialIntelligence} />
       </section>
-      <InteractiveIndonesiaMap headcount={headcount} />
+
       <section
-        aria-label="Data operasional pendukung"
-        className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_1.1fr_.9fr_1.05fr]"
+        aria-label="Sebaran dan aktivitas operasional"
+        className="grid gap-4 xl:grid-cols-3"
       >
-        <Card className="border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
-          <CardHeader className="p-5 pb-3">
+        <div className="min-w-0 xl:col-span-2">
+          <InteractiveIndonesiaMap headcount={headcount} />
+        </div>
+        <Card className="flex min-h-[430px] min-w-0 flex-col border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
+          <CardHeader className="shrink-0 p-5 pb-3">
             <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
               Aktivitas Terbaru
             </CardTitle>
@@ -166,10 +169,16 @@ export default async function DashboardPage() {
               Ringkasan aktivitas operasional
             </p>
           </CardHeader>
-          <CardContent className="max-h-[270px] overflow-y-auto p-5 pt-0">
-            <ActivityTimeline items={auditLogs.slice(0, 5)} />
+          <CardContent className="min-h-0 flex-1 overflow-y-auto p-5 pt-0">
+            <ActivityTimeline items={auditLogs.slice(0, 8)} />
           </CardContent>
         </Card>
+      </section>
+
+      <section
+        aria-label="Data operasional pendukung"
+        className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3"
+      >
         <ComponentCostCard total={Number(bruto)} />
         <AttentionCenter alerts={dashboardAlerts} />
         <div className="rounded-[18px] border border-slate-100 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
