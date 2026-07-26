@@ -62,10 +62,11 @@ async function readHeaders(
   let columns: string[] = [];
   sheet.eachRow((row) => {
     if (columns.length) return;
-    const values = row.values
-      .slice(1)
-      .map((value) => String(value ?? "").trim())
-      .filter(Boolean);
+    const values: string[] = [];
+    row.eachCell((cell) => {
+      const value = String(cell.value ?? "").trim();
+      if (value) values.push(value);
+    });
     if (values.length >= 2) columns = values;
   });
   return {
