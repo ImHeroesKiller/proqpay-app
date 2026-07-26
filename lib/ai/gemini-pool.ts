@@ -36,10 +36,10 @@ export type GeminiGenerateResult = {
 };
 
 const PRIMARY_MODEL =
-  process.env.GEMINI_PRIMARY_MODEL?.trim() || "gemini-3.1-flash";
+  process.env.GEMINI_PRIMARY_MODEL?.trim() || "gemini-3.5-flash";
 const FALLBACK_MODEL =
   process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.1-flash-lite";
-const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 5000);
+const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 12000);
 const MAX_RETRIES = 2;
 const CACHE_TTL_MS = 30_000;
 const CIRCUIT_THRESHOLD = 3;
