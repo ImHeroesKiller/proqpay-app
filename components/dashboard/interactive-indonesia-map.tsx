@@ -1,11 +1,88 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Map as LeafletMap } from "leaflet";
 import { Map, MapPin, MousePointer2 } from "lucide-react";
 import { indonesiaProvinces } from "@/lib/data/indonesia-provinces";
 
 type InteractiveIndonesiaMapProps = { headcount: number };
+type LeafletMap = {
+  remove: () => void;
+  flyTo: (
+    coordinates: [number, number],
+    zoom: number,
+    options: { duration: number },
+  ) => void;
+};
+type LeafletApi = {
+  map: (
+    node: HTMLElement,
+    options: Record<string, unknown>,
+  ) => LeafletMap & {
+    setView: (coordinates: [number, number], zoom: number) => LeafletMap;
+  };
+  control: {
+    zoom: (options: { position: string }) => {
+      addTo: (map: LeafletMap) => void;
+    };
+  };
+  tileLayer: (
+    url: string,
+    options: Record<string, unknown>,
+  ) => { addTo: (map: LeafletMap) => void };
+  marker: (
+    coordinates: [number, number],
+    options: Record<string, unknown>,
+  ) => {
+    addTo: (map: LeafletMap) => {
+      bindPopup: (
+        content: string,
+        options: Record<string, unknown>,
+      ) => {
+        on: (event: string, callback: () => void) => void;
+      };
+      on: (event: string, callback: () => void) => void;
+    };
+  };
+  divIcon: (options: Record<string, unknown>) => unknown;
+};
+
+declare global {
+  interface Window {
+    proqLeaflet?: LeafletApi;
+  }
+}
+
+function loadLeaflet(): Promise<LeafletApi> {
+  if (window.proqLeaflet) return Promise.resolve(window.proqLeaflet);
+  return new Promise((resolve, reject) => {
+    const stylesheet =
+      document.querySelector("link[data-proq-leaflet]") ??
+      document.head.appendChild(
+        Object.assign(document.createElement("link"), {
+          rel: "stylesheet",
+          href: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+          dataset: { proqLeaflet: "" },
+        }),
+      );
+    stylesheet.addEventListener(
+      "error",
+      () => reject(new Error("Leaflet stylesheet could not load")),
+      { once: true },
+    );
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.async = true;
+    script.onload = () => {
+      const api = (window as unknown as { L?: LeafletApi }).L;
+      if (api) {
+        window.proqLeaflet = api;
+        resolve(api);
+      } else reject(new Error("Leaflet did not initialise"));
+    };
+    script.onerror = () => reject(new Error("Leaflet script could not load"));
+    document.head.appendChild(script);
+  });
+}
 
 const regionPoints = [
   {
@@ -88,7 +165,7 @@ export function InteractiveIndonesiaMap({
   useEffect(() => {
     let disposed = false;
     async function createMap() {
-      const L = await import("leaflet");
+      const L = await loadLeaflet();
       if (disposed || !mapNode.current || mapRef.current) return;
       const map = L.map(mapNode.current, {
         zoomControl: false,
