@@ -4,6 +4,11 @@ import type { SessionScope } from "@/lib/auth/scope";
 import type { AlertItem, AuditLog, KpiCard, PayrollPeriod, Role } from "@/types";
 import { formatRupiah } from "@/lib/utils";
 
+export type DashboardDateRange = {
+  start: Date;
+  end: Date;
+};
+
 function toNumber(value: unknown): number {
   if (value == null) return 0;
   if (typeof value === "number") return value;
@@ -12,6 +17,16 @@ function toNumber(value: unknown): number {
 
 function isoDate(value: Date): string {
   return value.toISOString().slice(0, 10);
+}
+
+function normalizeRegion(value: string | null | undefined): string {
+  const text = (value ?? "").toLowerCase();
+  if (/papua|maluku/.test(text)) return "Maluku & Papua";
+  if (/sulawesi/.test(text)) return "Sulawesi";
+  if (/bali|nusa tenggara|lombok|kupang/.test(text)) return "Bali & Nusa Tenggara";
+  if (/kalimantan|banjarmasin|samarinda|balikpapan|pontianak/.test(text)) return "Kalimantan";
+  if (/sumatera|sumatra|aceh|medan|padang|pekanbaru|palembang|lampung|jambi|bengkulu|batam/.test(text)) return "Sumatera";
+  return "Jawa";
 }
 
 async function safely<T>(label: string, fallback: T, query: () => Promise<T>): Promise<T> {
@@ -23,29 +38,52 @@ async function safely<T>(label: string, fallback: T, query: () => Promise<T>): P
   }
 }
 
-export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
+export async function getDashboardSnapshot(
+  role: Role,
+  scope: SessionScope,
+  range: DashboardDateRange,
+) {
   const where = companyWhere(scope);
   const companyId = scope.role !== "SUPER_ADMIN" ? scope.companyId ?? undefined : undefined;
-  const payrollWhere = companyId ? { companyId } : {};
-  const approvalWhere = companyId ? { payrollPeriod: { companyId } } : {};
+  const payrollWhere = {
+    ...(companyId ? { companyId } : {}),
+    periodStart: { lte: range.end },
+    periodEnd: { gte: range.start },
+  };
+  const approvalWhere = {
+    ...(companyId ? { payrollPeriod: { companyId } } : {}),
+    payrollPeriod: {
+      ...(companyId ? { companyId } : {}),
+      periodStart: { lte: range.end },
+      periodEnd: { gte: range.start },
+    },
+  };
 
-  // Production uses a small pooled connection limit. Keep dashboard reads serialized
-  // so one request never exhausts all available database connections.
   const employees = await safely("employee-count", 0, () =>
     prisma.employee.count({
-      where: { ...where, status: { in: ["ACTIVE", "PROBATION"] } },
+      where: {
+        ...where,
+        status: { in: ["ACTIVE", "PROBATION"] },
+        joinDate: { lte: range.end },
+      },
     }),
   );
 
   const probation = await safely("probation-count", 0, () =>
-    prisma.employee.count({ where: { ...where, status: "PROBATION" } }),
+    prisma.employee.count({
+      where: {
+        ...where,
+        status: "PROBATION",
+        joinDate: { lte: range.end },
+      },
+    }),
   );
 
   const periodRows = await safely("periods", [], () =>
     prisma.payrollPeriod.findMany({
       where: payrollWhere,
       orderBy: { periodStart: "desc" },
-      take: 6,
+      take: 24,
       select: {
         id: true,
         companyId: true,
@@ -98,6 +136,7 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
     prisma.paymentConfirmation.count({
       where: {
         ...(companyId ? { companyId } : {}),
+        paymentDate: { gte: range.start, lte: range.end },
         status: { in: ["UPLOADED", "UNDER_REVIEW"] },
       },
     }),
@@ -105,7 +144,11 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
 
   const rejectedProof = await safely("rejected-proof", 0, () =>
     prisma.paymentConfirmation.count({
-      where: { ...(companyId ? { companyId } : {}), status: "REJECTED" },
+      where: {
+        ...(companyId ? { companyId } : {}),
+        paymentDate: { gte: range.start, lte: range.end },
+        status: "REJECTED",
+      },
     }),
   );
 
@@ -113,14 +156,28 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
     prisma.paymentInstructionItem.count({
       where: {
         status: "FAILED",
-        ...(companyId ? { paymentInstruction: { companyId } } : {}),
+        paymentInstruction: {
+          ...(companyId ? { companyId } : {}),
+          payrollPeriod: {
+            periodStart: { lte: range.end },
+            periodEnd: { gte: range.start },
+          },
+        },
       },
     }),
   );
 
-  const current = payrollPeriods.find((period) =>
-    ["WAITING", "APPROVED", "PAYMENT_INSTRUCTION_GENERATED", "WAITING_CLIENT_TRANSFER", "TRANSFER_PROOF_UPLOADED", "UNDER_VERIFICATION"].includes(period.status),
-  ) ?? payrollPeriods[0];
+  const current =
+    payrollPeriods.find((period) =>
+      [
+        "WAITING",
+        "APPROVED",
+        "PAYMENT_INSTRUCTION_GENERATED",
+        "WAITING_CLIENT_TRANSFER",
+        "TRANSFER_PROOF_UPLOADED",
+        "UNDER_VERIFICATION",
+      ].includes(period.status),
+    ) ?? payrollPeriods[0];
 
   const dashboardKpis: KpiCard[] = [
     {
@@ -192,7 +249,10 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
 
   const auditRows = await safely("audit", [], () =>
     prisma.auditLog.findMany({
-      where: companyId ? { companyId } : {},
+      where: {
+        ...(companyId ? { companyId } : {}),
+        timestamp: { gte: range.start, lte: range.end },
+      },
       orderBy: { timestamp: "desc" },
       take: 8,
       select: {
@@ -225,7 +285,7 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
     prisma.project.findMany({
       where: companyId ? { companyId } : {},
       orderBy: { name: "asc" },
-      take: 12,
+      take: 20,
       select: {
         id: true,
         clientName: true,
@@ -235,6 +295,10 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
         company: { select: { name: true, actualManagedPayroll: true } },
         assignments: { where: { isActive: true }, select: { id: true } },
         payrollPeriods: {
+          where: {
+            periodStart: { lte: range.end },
+            periodEnd: { gte: range.start },
+          },
           orderBy: { periodStart: "desc" },
           take: 1,
           select: { employeeCount: true, totalGross: true, totalNet: true, status: true },
@@ -246,15 +310,79 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
   const clientRows = projectRows.map((project) => {
     const period = project.payrollPeriods[0];
     const status = period?.status ?? "DRAFT";
-    const sla = status === "CLOSED" || status === "DISBURSED" ? 98 : status === "APPROVED" ? 95 : status === "WAITING" ? 92 : 88;
+    const sla =
+      status === "CLOSED" || status === "DISBURSED"
+        ? 98
+        : status === "APPROVED"
+          ? 95
+          : status === "WAITING"
+            ? 92
+            : 88;
     return {
       id: project.id,
       clientName: project.clientName || project.company.name,
       projectName: [project.name, project.site || project.location].filter(Boolean).join(" · "),
       employees: project.assignments.length || period?.employeeCount || 0,
-      totalBruto: period ? toNumber(period.totalGross ?? period.totalNet) : toNumber(project.company.actualManagedPayroll),
+      totalBruto: period
+        ? toNumber(period.totalGross ?? period.totalNet)
+        : toNumber(project.company.actualManagedPayroll),
       status,
       sla,
+    };
+  });
+
+  const mapEmployeeRows = await safely("map-employees", [], () =>
+    prisma.employee.findMany({
+      where: {
+        ...where,
+        status: { in: ["ACTIVE", "PROBATION"] },
+        joinDate: { lte: range.end },
+      },
+      orderBy: { name: "asc" },
+      take: 250,
+      select: {
+        id: true,
+        employeeCode: true,
+        name: true,
+        department: true,
+        position: true,
+        status: true,
+        company: { select: { name: true, address: true } },
+        payrollAssignments: {
+          where: { isActive: true },
+          orderBy: { effectiveFrom: "desc" },
+          take: 1,
+          select: {
+            placementLocation: true,
+            project: { select: { name: true, location: true, site: true } },
+            site: { select: { city: true, province: true } },
+          },
+        },
+      },
+    }),
+  );
+
+  const mapEmployees = mapEmployeeRows.map((employee) => {
+    const assignment = employee.payrollAssignments[0];
+    const placementLocation =
+      assignment?.placementLocation ||
+      assignment?.site?.province ||
+      assignment?.site?.city ||
+      assignment?.project?.location ||
+      assignment?.project?.site ||
+      employee.company.address ||
+      "Indonesia";
+    return {
+      id: employee.id,
+      employeeCode: employee.employeeCode,
+      name: employee.name,
+      department: employee.department,
+      position: employee.position,
+      status: employee.status,
+      companyName: employee.company.name,
+      projectName: assignment?.project?.name ?? "",
+      placementLocation,
+      region: normalizeRegion(placementLocation),
     };
   });
 
@@ -265,5 +393,6 @@ export async function getDashboardSnapshot(role: Role, scope: SessionScope) {
     chartData,
     auditLogs,
     clientRows,
+    mapEmployees,
   };
 }
