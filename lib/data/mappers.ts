@@ -304,6 +304,7 @@ export function mapPricingRule(
 }
 
 export type CompanySettingsView = {
+  id: string;
   name: string;
   legalName: string;
   npwp: string;
@@ -321,6 +322,7 @@ export function mapCompanySettings(
   banks: DbBankAccount[],
 ): CompanySettingsView {
   return {
+    id: company.id,
     name: company.name,
     legalName: company.legalName ?? company.name,
     npwp: company.npwp ?? "—",

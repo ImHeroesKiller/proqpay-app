@@ -26,27 +26,6 @@ const deploy = () =>
 
 let result = deploy();
 if (result.status !== 0) {
-  console.warn("migrate-safe: first deploy failed; attempting resolve --rolled-back for enterprise migration");
-  spawnSync(
-    "pnpm",
-    [
-      "exec",
-      "prisma",
-      "migrate",
-      "resolve",
-      "--rolled-back",
-      "20260725_enterprise_payroll_platform",
-    ],
-    { stdio: "inherit", env: process.env },
-  );
-  result = deploy();
-}
-
-if (result.status !== 0) {
-  // Do not block app deploy on migration history conflicts — SQL is additive.
-  // Ops can re-run migrate deploy after resolving prisma_migrations manually.
-  console.warn(
-    "migrate-safe: migrate still failing; continuing build so app code can deploy. Apply migration manually if needed.",
-  );
-  process.exit(0);
+  console.error("migrate-safe: migrate deploy failed; refusing to build with an unsynchronized database.");
+  process.exit(1);
 }

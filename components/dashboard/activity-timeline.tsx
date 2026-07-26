@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import {
   CheckCircle2,
   FileText,
@@ -199,7 +196,7 @@ export function ActivityTimeline({ items }: { items: AuditLog[] }) {
 
   return (
     <ol className="space-y-0 divide-y divide-border/70">
-      {items.map((item, index) => {
+      {items.map((item) => {
         const human = humanizeActivity(item);
         const Icon = human.icon;
         const badge =
@@ -212,11 +209,8 @@ export function ActivityTimeline({ items }: { items: AuditLog[] }) {
         });
 
         return (
-          <motion.li
+          <li
             key={item.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.04 }}
             className="flex gap-3 py-3.5 first:pt-0 last:pb-0"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy/5 text-navy">
@@ -238,7 +232,7 @@ export function ActivityTimeline({ items }: { items: AuditLog[] }) {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{time}</p>
             </div>
-          </motion.li>
+          </li>
         );
       })}
     </ol>

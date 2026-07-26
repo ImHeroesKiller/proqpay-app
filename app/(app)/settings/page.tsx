@@ -4,11 +4,16 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getCompanySettings, getUsers } from "@/lib/data/queries";
+import { requireModule } from "@/lib/auth/session";
+import { prisma } from "@/lib/db";
+import { updateCompanySettings, updateMyProfile } from "./actions";
 
 export default async function SettingsPage() {
+  const scope = await requireModule("settings");
+  const profile = await prisma.user.findUniqueOrThrow({ where: { id: scope.userId }, select: { name: true, email: true, department: true } });
   const [companySettings, users] = await Promise.all([
-    getCompanySettings(),
-    getUsers(),
+    getCompanySettings(scope),
+    getUsers(scope),
   ]);
 
   const settings = companySettings ?? {
@@ -33,6 +38,7 @@ export default async function SettingsPage() {
       purpose: string;
     }[],
   };
+  const canManageCompany = ["SUPER_ADMIN", "DIRECTOR"].includes(scope.role);
 
   return (
     <div>
@@ -42,15 +48,23 @@ export default async function SettingsPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <Card id="account">
+          <CardHeader><CardTitle>My account</CardTitle></CardHeader>
+          <CardContent>
+            <form action={updateMyProfile} className="grid gap-3">
+              <label className="grid gap-1 text-sm font-medium">Nama<input name="name" defaultValue={profile.name} required minLength={2} maxLength={120} className="h-10 rounded-lg border border-border px-3" /></label>
+              <label className="grid gap-1 text-sm font-medium">Email<input value={profile.email} disabled className="h-10 rounded-lg border border-border bg-muted px-3 text-muted-foreground" /></label>
+              <label className="grid gap-1 text-sm font-medium">Departemen<input name="department" defaultValue={profile.department ?? ""} maxLength={120} className="h-10 rounded-lg border border-border px-3" /></label>
+              <button type="submit" className="h-10 rounded-xl bg-navy px-4 text-sm font-semibold text-white">Simpan profil</button>
+            </form>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Company</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Name" value={settings.name} />
-            <Row label="Legal" value={settings.legalName} />
-            <Row label="NPWP" value={settings.npwp} />
-            <Row label="Address" value={settings.address} />
+            {canManageCompany && companySettings ? <form action={updateCompanySettings} className="grid gap-3"><input type="hidden" name="companyId" value={companySettings.id} /><label className="grid gap-1">Name<input name="name" defaultValue={settings.name} required className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">Legal name<input name="legalName" defaultValue={settings.legalName === "—" ? "" : settings.legalName} className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">NPWP<input name="npwp" defaultValue={settings.npwp === "—" ? "" : settings.npwp} className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">Address<input name="address" defaultValue={settings.address === "—" ? "" : settings.address} className="h-9 rounded-lg border border-border px-3" /></label><label className="grid gap-1">Funding model<select name="defaultFundingModel" defaultValue={settings.defaultFundingModel} className="h-9 rounded-lg border border-border px-3"><option value="SELF_FUNDED">Client-funded</option><option value="WORKING_CAPITAL">Working capital</option></select></label><label className="flex items-center gap-2"><input type="checkbox" name="fundingEnabled" defaultChecked={settings.fundingEnabled} /> Funding facility enabled</label><button type="submit" className="h-10 rounded-xl bg-navy px-4 text-sm font-semibold text-white">Simpan perusahaan</button></form> : <><Row label="Name" value={settings.name} /><Row label="Legal" value={settings.legalName} /><Row label="NPWP" value={settings.npwp} /><Row label="Address" value={settings.address} /><p className="text-xs text-muted-foreground">Pengaturan perusahaan dikelola oleh Super Admin atau Director.</p></>}
           </CardContent>
         </Card>
 

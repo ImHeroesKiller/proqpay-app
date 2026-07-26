@@ -664,7 +664,7 @@ model DisbursementBatch {
   payrollPeriodId String             @map("payroll_period_id") @db.Uuid
   periodName      String             @map("period_name")
   bankName        String             @map("bank_name")
-  totalAmount     Decimal            @map("total_amount") @db.Decimal(18, 2)
+  totalAmount     Decimal            @map("grand_total") @db.Decimal(18, 2)
   itemCount       Int                @map("item_count")
   status          DisbursementStatus @default(PENDING)
   referenceNumber String             @map("reference_number")
@@ -1313,6 +1313,7 @@ model AuditLog {
 model PayrollGroup {
   id         String    @id @default(uuid()) @db.Uuid
   companyId  String    @map("company_id") @db.Uuid
+  payCycleId String    @map("pay_cycle_id") @db.Uuid
   projectId  String?   @map("project_id") @db.Uuid
   code       String
   name       String
@@ -1361,23 +1362,32 @@ model EmployeePayrollAssignment {
 }
 
 model ImportTemplate {
-  id          String   @id @default(uuid()) @db.Uuid
-  code        String   @unique
-  name        String
-  description String?
-  version     String   @default("1.0")
-  columnsJson Json     @default("[]") @map("columns_json")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String?  @map("company_id") @db.Uuid
+  code             String
+  name             String
+  entityType       String   @map("entity_type")
+  description      String?
+  version          Int      @default(1)
+  fileFormat       String   @default("XLSX") @map("file_format")
+  sheetName        String?  @map("sheet_name")
+  columnSchema     Json     @default("[]") @map("column_schema")
+  validationSchema Json     @default("{}") @map("validation_schema")
+  sampleRows       Json     @default("[]") @map("sample_rows")
+  columnsJson      Json     @default("[]") @map("columns_json")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@map("import_templates")
+  @@unique([companyId, code, version])
   @@schema("proqpay")
 }
 
 model ImportBatch {
   id              String   @id @default(uuid()) @db.Uuid
-  companyId       String?  @map("company_id") @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  templateId      String   @map("template_id") @db.Uuid
   templateCode    String   @map("template_code")
   templateVersion String   @default("1.0") @map("template_version")
   fileName        String   @map("file_name")
@@ -1385,11 +1395,11 @@ model ImportBatch {
   status          String   @default("UPLOADED")
   totalRows       Int      @default(0) @map("total_rows")
   validRows       Int      @default(0) @map("valid_rows")
-  errorRows       Int      @default(0) @map("error_rows")
+  errorRows       Int      @default(0) @map("invalid_rows")
   warningRows     Int      @default(0) @map("warning_rows")
   committedRows   Int      @default(0) @map("committed_rows")
-  uploadedBy      String?  @map("uploaded_by") @db.Uuid
-  committedBy     String?  @map("committed_by") @db.Uuid
+  uploadedBy      String?  @map("uploaded_by_user_id") @db.Uuid
+  committedBy     String?  @map("committed_by_user_id") @db.Uuid
   committedAt     DateTime? @map("committed_at")
   errorSummary    String?  @map("error_summary")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -1581,14 +1591,16 @@ model Payslip {
 
 model Invoice {
   id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
   companyId       String   @map("company_id") @db.Uuid
+  clientId        String   @map("client_id") @db.Uuid
   payrollPeriodId String?  @map("payroll_period_id") @db.Uuid
   invoiceNumber   String   @map("invoice_number")
   status          String   @default("DRAFT")
   issueDate       DateTime? @map("issue_date") @db.Date
   dueDate         DateTime? @map("due_date") @db.Date
   subtotal        Decimal  @default(0) @db.Decimal(18, 2)
-  taxAmount       Decimal  @default(0) @map("tax_amount") @db.Decimal(18, 2)
+  taxAmount       Decimal  @default(0) @map("tax") @db.Decimal(18, 2)
   managementFee   Decimal  @default(0) @map("management_fee") @db.Decimal(18, 2)
   totalAmount     Decimal  @default(0) @map("total_amount") @db.Decimal(18, 2)
   currency        String   @default("IDR")

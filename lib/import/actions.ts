@@ -45,6 +45,22 @@ export async function uploadImportBatch(input: {
   }
 
   const { template, rows } = await parseImportExcel(buffer, input.templateCode);
+  const templateColumns = JSON.parse(JSON.stringify(template.columns));
+  const existingTemplate = await prisma.importTemplate.findFirst({
+    where: { companyId: null, code: input.templateCode, version: 1 },
+    select: { id: true },
+  });
+  const templateMeta = existingTemplate ?? await prisma.importTemplate.create({
+    data: {
+      companyId: null,
+      code: input.templateCode,
+      name: template.name,
+      entityType: input.templateCode,
+      version: 1,
+      columnSchema: templateColumns,
+      columnsJson: templateColumns,
+    },
+  });
 
   const employees = await prisma.employee.findMany({
     select: { employeeCode: true, bankAccount: true },
@@ -70,9 +86,10 @@ export async function uploadImportBatch(input: {
     await tx.importBatch.create({
       data: {
         id: batchId,
-        companyId: input.companyId ?? scope.companyId ?? null,
+        companyId: input.companyId ?? scope.companyId ?? (await tx.company.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } }))?.id ?? (() => { throw new Error("Client/perusahaan belum tersedia"); })(),
+        templateId: templateMeta.id,
         templateCode: input.templateCode,
-        templateVersion: template.version,
+        templateVersion: String(template.version),
         fileName: input.fileName,
         fileChecksum: checksum,
         status: "VALIDATED",

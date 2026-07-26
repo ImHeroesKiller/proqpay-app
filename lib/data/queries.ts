@@ -31,8 +31,11 @@ import {
   prismaActiveAssignmentArgs,
 } from "@/lib/employees/payroll-assignment";
 
-export async function getUsers() {
-  const rows = await prisma.user.findMany({ orderBy: { name: "asc" } });
+export async function getUsers(scope?: SessionScope) {
+  const rows = await prisma.user.findMany({
+    where: scope?.organizationId ? { organizationId: scope.organizationId } : {},
+    orderBy: { name: "asc" },
+  });
   return rows.map(mapUser);
 }
 
@@ -646,4 +649,3 @@ export async function getPayrollByClientProject(scope?: SessionScope) {
     };
   });
 }
-
