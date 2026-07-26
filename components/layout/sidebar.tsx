@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import { Bot, Sparkles } from "lucide-react";
 import { navigationByCategory } from "@/config/navigation";
 import { cn } from "@/lib/utils";
@@ -61,11 +60,7 @@ export function Sidebar({
                     )}
                   >
                     {exactActive ? (
-                      <motion.span
-                        layoutId="nav-pill"
-                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-900/30"
-                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                      />
+                      <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-900/30" />
                     ) : null}
                     <span
                       className={cn(
