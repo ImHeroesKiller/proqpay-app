@@ -36,6 +36,7 @@ export function AppShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const isUnifiedWorkspace = pathname === "/dashboard";
 
   return (
     <EnterpriseContextProvider>
@@ -60,12 +61,12 @@ export function AppShell({
 
         <div className={cn("flex min-h-screen flex-1 flex-col lg:pl-[230px]")}>
           <Topbar user={user} onMenuClick={() => setMobileOpen(true)} />
-          {pathname !== "/dashboard" ? <EnterpriseContextBar /> : null}
+          {!isUnifiedWorkspace ? <EnterpriseContextBar /> : null}
           <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-5 sm:px-6 lg:px-8">
             {children}
           </main>
         </div>
-        <IdaAssistant />
+        {!isUnifiedWorkspace ? <IdaAssistant /> : null}
       </div>
     </EnterpriseContextProvider>
   );
