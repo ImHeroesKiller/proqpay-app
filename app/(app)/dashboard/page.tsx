@@ -3,19 +3,17 @@ export const dynamic = "force-dynamic";
 import { AttentionCenter } from "@/components/dashboard/attention-center";
 import { ActivityTimeline } from "@/components/dashboard/activity-timeline";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import { BusinessInsightPanel } from "@/components/dashboard/business-insight-panel";
 import { ClientPayrollTable } from "@/components/dashboard/client-payroll-table";
 import { InteractiveIndonesiaMap } from "@/components/dashboard/interactive-indonesia-map";
 import { PaymentStatusCard } from "@/components/dashboard/payment-status-card";
 import { ComponentCostCard } from "@/components/dashboard/component-cost-card";
 import { DashboardPeriodFilter } from "@/components/dashboard/dashboard-period-filter";
+import { IdaWorkspace } from "@/components/ida/ida-assistant";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardSnapshot } from "@/lib/data/dashboard-snapshot";
 import { requireModule } from "@/lib/auth/session";
-import { auth } from "@/lib/auth";
 import { formatRupiah } from "@/lib/utils";
-import { buildHeuristicInsights } from "@/lib/ai/proq-intelligence";
 import type { KpiCard as KpiCardType } from "@/types";
 
 function formatCompactBruto(n: number): string {
@@ -83,7 +81,6 @@ export default async function DashboardPage({
   const selectedRange = resolveRange(rangeParam ?? "month", startParam, endParam);
 
   const scope = await requireModule("dashboard");
-  const session = await auth();
   const {
     dashboardKpis,
     dashboardAlerts,
@@ -167,16 +164,14 @@ export default async function DashboardPage({
     },
   ];
 
-  const initialIntelligence = buildHeuristicInsights({
-    userName: session?.user?.name,
-    kpis: executiveKpis,
-    alerts: dashboardAlerts,
-    periods: payrollPeriods,
-  });
-
   return (
     <div className="mx-auto max-w-[1480px] space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-indigo-600">ProQPay Lite</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">Dashboard & IDA Workspace</h1>
+          <p className="mt-1 text-sm text-slate-500">Instruksikan pekerjaan melalui IDA. Dashboard akan menyesuaikan setelah aksi dikonfirmasi.</p>
+        </div>
         <DashboardPeriodFilter
           preset={selectedRange.preset}
           start={selectedRange.startValue}
@@ -184,10 +179,7 @@ export default async function DashboardPage({
         />
       </div>
 
-      <section
-        className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]"
-        aria-label="Dashboard utama"
-      >
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]" aria-label="Dashboard utama dan IDA Workspace">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {executiveKpis.map((item) => (
@@ -197,43 +189,29 @@ export default async function DashboardPage({
           <div className="grid gap-4 lg:grid-cols-[1.25fr_.9fr]">
             <Card className="flex min-w-0 flex-col overflow-hidden border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)] lg:h-[310px]">
               <CardHeader className="shrink-0 p-5 pb-3">
-                <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
-                  Payroll by Client / Project
-                </CardTitle>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Ringkasan bruto dan status per client pada periode terpilih
-                </p>
+                <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">Payroll by Client / Project</CardTitle>
+                <p className="text-xs leading-5 text-muted-foreground">Ringkasan bruto dan status per client pada periode terpilih</p>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 overflow-auto p-5 pt-0">
                 <ClientPayrollTable rows={clientRows} />
               </CardContent>
             </Card>
             <div className="lg:h-[310px]">
-              <PaymentStatusCard
-                total={Number(bruto)}
-                failed={failedPayments}
-              />
+              <PaymentStatusCard total={Number(bruto)} failed={failedPayments} />
             </div>
           </div>
         </div>
-        <BusinessInsightPanel initial={initialIntelligence} />
+        <IdaWorkspace className="min-h-[710px] xl:row-span-2" />
       </section>
 
-      <section
-        aria-label="Sebaran dan aktivitas operasional"
-        className="grid gap-4 xl:grid-cols-3"
-      >
+      <section aria-label="Sebaran dan aktivitas operasional" className="grid gap-4 xl:grid-cols-3">
         <div className="min-w-0 xl:col-span-2">
           <InteractiveIndonesiaMap headcount={headcount} employees={mapEmployees} />
         </div>
         <Card className="flex min-h-[430px] min-w-0 flex-col border-slate-100 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
           <CardHeader className="shrink-0 p-5 pb-3">
-            <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
-              Aktivitas Terbaru
-            </CardTitle>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Ringkasan aktivitas operasional pada periode terpilih
-            </p>
+            <CardTitle className="text-sm font-bold uppercase tracking-[0.05em] text-navy">Aktivitas Terbaru</CardTitle>
+            <p className="text-xs leading-5 text-muted-foreground">Ringkasan aktivitas operasional pada periode terpilih</p>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-y-auto p-5 pt-0">
             <ActivityTimeline items={auditLogs.slice(0, 8)} />
@@ -241,22 +219,13 @@ export default async function DashboardPage({
         </Card>
       </section>
 
-      <section
-        aria-label="Data operasional pendukung"
-        className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3"
-      >
+      <section aria-label="Data operasional pendukung" className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <ComponentCostCard total={Number(bruto)} />
         <AttentionCenter alerts={dashboardAlerts} />
         <div className="rounded-[18px] border border-slate-100 bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
-          <h2 className="text-sm font-bold uppercase tracking-[0.05em] text-navy">
-            Aksi Cepat
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Akses pekerjaan payroll yang paling sering digunakan.
-          </p>
-          <div className="mt-4">
-            <QuickActions />
-          </div>
+          <h2 className="text-sm font-bold uppercase tracking-[0.05em] text-navy">Admin Fallback</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Akses modul operasional lama hanya saat IDA memerlukan penanganan manual oleh admin.</p>
+          <div className="mt-4"><QuickActions /></div>
         </div>
       </section>
     </div>
