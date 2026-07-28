@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     let message = "Aksi selesai.";
     let refreshDashboard = true;
-    let adminHref = proposal.adminHref;
+    const adminHref = proposal.adminHref;
 
     switch (proposal.type) {
       case "REFRESH_DASHBOARD":
