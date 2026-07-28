@@ -1,152 +1,148 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  Bot,
-  Download,
-  FileSpreadsheet,
+  Check,
+  ChevronRight,
+  LoaderCircle,
   MessageCircle,
-  Settings2,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
-  Upload,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type {
+  IdaActionProposal,
+  IdaChatResponse,
+  IdaConversationState,
+  IdaExecuteResponse,
+} from "@/lib/ida/contracts";
 
-type Message = {
-  id: number;
-  role: "ida" | "user";
-  text: string;
-};
+type Message = { id: string; role: "ida" | "user"; text: string };
+type WorkspaceProps = { embedded?: boolean; className?: string };
 
-const starterActions = [
-  { label: "Mulai payroll", prompt: "Saya ingin mulai proses payroll", icon: Sparkles },
-  { label: "Minta template", prompt: "Saya membutuhkan template data payroll", icon: FileSpreadsheet },
-  { label: "Import data", prompt: "Bantu saya mengimpor data", icon: Upload },
-  { label: "Atur payroll", prompt: "Saya ingin mengatur atau menyesuaikan payroll", icon: Settings2 },
+const STORAGE_KEY = "proqpay-lite-ida-workspace-v1";
+const starters = [
+  "Mulai proses payroll bulan ini",
+  "Cek data yang perlu divalidasi",
+  "Hitung payroll periode aktif",
+  "Tampilkan status approval dan pembayaran",
 ];
 
-function answerFor(input: string): { text: string; href?: string; action?: string } {
-  const value = input.toLowerCase();
-  if (/mulai|proses payroll|payroll baru/.test(value)) {
-    return {
-      text: "Baik. Kita mulai dari periode payroll, lalu data masuk, validasi, kalkulasi, approval, pembayaran, dan penutupan. Saya arahkan ke Payroll Runs untuk membuat atau memilih periode aktif.",
-      href: "/payroll",
-      action: "Buka Payroll Runs",
-    };
-  }
-  if (/template|format|excel/.test(value)) {
-    return {
-      text: "Template tersedia untuk employee, attendance, overtime, payroll component, mutation, BPJS, dan rekening bank. Buka Import Center untuk memilih dan mengunduh template yang sesuai.",
-      href: "/import",
-      action: "Buka Import Center",
-    };
-  }
-  if (/import|upload|unggah/.test(value)) {
-    return {
-      text: "Saya akan membantu proses data masuk. Gunakan Import Center untuk upload file, preview data, validasi struktur, dan melihat baris yang perlu diperbaiki sebelum diproses.",
-      href: "/import",
-      action: "Import Data",
-    };
-  }
-  if (/atur|setting|custom|komponen|bpjs|pajak|tanggal/.test(value)) {
-    return {
-      text: "Pengaturan payroll dapat disesuaikan melalui Payroll Setup dan Settings: tanggal cut-off, tanggal bayar, payroll group, komponen, pajak, BPJS, approval matrix, dan aturan project/client.",
-      href: "/payroll-groups",
-      action: "Buka Payroll Setup",
-    };
-  }
-  if (/validasi|masalah|error|rekening|bpjs/.test(value)) {
-    return {
-      text: "Saya sarankan membuka Validation & Approval. Di sana Anda dapat melihat rekening kosong, absensi tidak valid, BPJS, NPWP, payroll group, dan exception lainnya.",
-      href: "/validation",
-      action: "Buka Validation",
-    };
-  }
-  if (/approval|setuju|approve/.test(value)) {
-    return {
-      text: "Approval Queue menampilkan payroll yang menunggu review beserta feedback dan status tiap level persetujuan.",
-      href: "/approval",
-      action: "Buka Approval Queue",
-    };
-  }
-  if (/bayar|payment|transfer|instruction/.test(value)) {
-    return {
-      text: "Setelah approval selesai, buat Payment Instruction, lakukan transfer, lalu verifikasi melalui Payment Confirmation.",
-      href: "/payment-instructions",
-      action: "Buka Payment Instruction",
-    };
-  }
+function initialState(): IdaConversationState {
   return {
-    text: "Saya dapat membantu menjalankan payroll, meminta template, mengimpor dan memvalidasi data, menyesuaikan aturan payroll, mengarahkan approval, serta memproses pembayaran. Pilih salah satu aksi atau jelaskan tujuan Anda.",
+    conversationId: crypto.randomUUID(),
+    workflowStage: "SETUP",
+    updatedAt: new Date().toISOString(),
   };
 }
 
-export function IdaAssistant() {
+function Workspace({ embedded = false, className }: WorkspaceProps) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const endRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const [state, setState] = useState<IdaConversationState>(initialState);
+  const [proposal, setProposal] = useState<IdaActionProposal>();
+  const [confirmationToken, setConfirmationToken] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: 1,
+      id: "welcome",
       role: "ida",
-      text: "Halo, saya IDA. Saya akan memandu proses payroll dari setup data sampai payroll ditutup. Apa yang ingin Anda kerjakan?",
+      text: "Halo, saya IDA. Semua proses ProQPay Lite dapat dijalankan dari workspace ini. Ceritakan pekerjaan payroll yang ingin Anda selesaikan.",
     },
   ]);
-  const [lastAction, setLastAction] = useState<ReturnType<typeof answerFor> | null>(null);
-  const [thinking, setThinking] = useState(false);
 
   useEffect(() => {
-    const handler = () => setOpen(true);
-    window.addEventListener("open-ida", handler);
-    return () => window.removeEventListener("open-ida", handler);
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as { state?: IdaConversationState; messages?: Message[] };
+      if (parsed.state) setState(parsed.state);
+      if (parsed.messages?.length) setMessages(parsed.messages.slice(-40));
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   }, []);
 
-  const nextId = useMemo(() => messages.length + 1, [messages.length]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state, messages: messages.slice(-40) }));
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, state]);
 
   async function submit(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || thinking) return;
-    setMessages((current) => [
-      ...current,
-      { id: nextId, role: "user", text: trimmed },
-    ]);
+    const value = text.trim();
+    if (!value || thinking || executing) return;
     setInput("");
-    setOpen(true);
+    setProposal(undefined);
+    setConfirmationToken(undefined);
+    setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: value }]);
     setThinking(true);
     try {
       const response = await fetch("/api/ida/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, pathname }),
+        body: JSON.stringify({ message: value, pathname, state }),
       });
-      const result = (await response.json()) as {
-        reply?: string;
-        href?: string;
-        action?: string;
-      };
-      if (!response.ok || !result.reply) throw new Error("IDA unavailable");
+      const result = (await response.json()) as IdaChatResponse & { error?: string };
+      if (!response.ok) throw new Error(result.error || "IDA tidak tersedia");
+      setState(result.state);
+      setProposal(result.proposal);
+      setConfirmationToken(result.confirmationToken);
       setMessages((current) => [
         ...current,
-        { id: nextId + 1, role: "ida", text: result.reply! },
+        { id: crypto.randomUUID(), role: "ida", text: result.reply },
       ]);
-      setLastAction({
-        text: result.reply,
-        href: result.href,
-        action: result.action,
-      });
-    } catch {
-      const fallback = answerFor(trimmed);
+    } catch (error) {
       setMessages((current) => [
         ...current,
-        { id: nextId + 1, role: "ida", text: fallback.text },
+        {
+          id: crypto.randomUUID(),
+          role: "ida",
+          text: error instanceof Error ? error.message : "IDA belum dapat memproses permintaan ini.",
+        },
       ]);
-      setLastAction(fallback);
     } finally {
       setThinking(false);
+    }
+  }
+
+  async function confirmAction() {
+    if (!confirmationToken || executing) return;
+    setExecuting(true);
+    try {
+      const response = await fetch("/api/ida/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationToken }),
+      });
+      const result = (await response.json()) as IdaExecuteResponse & { error?: string };
+      if (!response.ok) throw new Error(result.error || "Aksi gagal dijalankan");
+      setMessages((current) => [
+        ...current,
+        { id: crypto.randomUUID(), role: "ida", text: result.message },
+      ]);
+      setProposal(undefined);
+      setConfirmationToken(undefined);
+      setState((current) => ({ ...current, pendingAction: undefined, updatedAt: new Date().toISOString() }));
+      if (result.refreshDashboard) router.refresh();
+      if (result.adminHref) router.push(result.adminHref);
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "ida",
+          text: error instanceof Error ? error.message : "Aksi gagal dijalankan.",
+        },
+      ]);
+    } finally {
+      setExecuting(false);
     }
   }
 
@@ -156,130 +152,121 @@ export function IdaAssistant() {
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-3 rounded-full bg-navy px-4 py-3 text-white shadow-2xl transition hover:-translate-y-0.5 hover:bg-[#102c55] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-        aria-label="Buka IDA"
-      >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600">
-          <Bot className="h-5 w-5" />
-        </span>
-        <span className="hidden text-left sm:block">
-          <span className="block text-sm font-bold">IDA</span>
-          <span className="block text-[11px] text-white/65">AI Payroll Assistant</span>
-        </span>
-      </button>
-
-      <div
-        className={cn(
-          "fixed inset-0 z-50 transition",
-          open ? "pointer-events-auto" : "pointer-events-none",
-        )}
-        aria-hidden={!open}
-      >
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className={cn(
-            "absolute inset-0 bg-navy/20 backdrop-blur-[2px] transition-opacity",
-            open ? "opacity-100" : "opacity-0",
-          )}
-          aria-label="Tutup IDA"
-        />
-        <section
-          className={cn(
-            "absolute bottom-4 right-4 flex h-[min(720px,calc(100vh-32px))] w-[min(420px,calc(100vw-32px))] flex-col overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-2xl transition duration-200",
-            open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
-          )}
-          aria-label="IDA AI Payroll Assistant"
-        >
-          <header className="flex items-center justify-between bg-gradient-to-r from-[#071a32] to-[#124fbd] px-5 py-4 text-white">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
-                <Bot className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="font-display text-base font-bold">IDA</h2>
-                <p className="text-xs text-white/65">Payroll guide & action assistant</p>
-              </div>
+    <section
+      className={cn(
+        "flex min-h-[620px] flex-col overflow-hidden rounded-[24px] border border-indigo-100 bg-white shadow-[0_18px_55px_rgba(79,70,229,0.12)]",
+        className,
+      )}
+      aria-label="Unified IDA Workspace"
+    >
+      <header className="relative overflow-hidden border-b border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-5">
+        <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-violet-200/40 blur-2xl" />
+        <div className="relative flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-600 text-white shadow-lg shadow-indigo-200">
+            <Sparkles className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-extrabold text-slate-900">IDA Workspace</h2>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Ready</span>
             </div>
-            <button type="button" onClick={() => setOpen(false)} className="rounded-full p-2 hover:bg-white/10" aria-label="Tutup">
-              <X className="h-5 w-5" />
+            <p className="mt-1 text-xs leading-5 text-slate-500">AI Payroll Operator · seluruh instruksi, preview, konfirmasi, dan eksekusi dalam satu ruang.</p>
+          </div>
+        </div>
+        <div className="relative mt-4 flex items-center gap-2 overflow-x-auto pb-1 text-[11px] font-semibold text-slate-500">
+          {["SETUP", "IMPORT", "VALIDATION", "CALCULATION", "APPROVAL", "PAYMENT_INSTRUCTION", "REPORTING"].map((stage) => (
+            <span key={stage} className={cn("whitespace-nowrap rounded-full border px-2.5 py-1", state.workflowStage === stage ? "border-indigo-300 bg-indigo-100 text-indigo-700" : "border-slate-200 bg-white")}>
+              {stage.replaceAll("_", " ")}
+            </span>
+          ))}
+        </div>
+      </header>
+
+      <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+        <div className="grid grid-cols-2 gap-2">
+          {starters.map((prompt) => (
+            <button key={prompt} type="button" onClick={() => void submit(prompt)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[11px] font-semibold leading-4 text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-700">
+              {prompt}
             </button>
-          </header>
+          ))}
+        </div>
+      </div>
 
-          <div className="border-b bg-slate-50 px-4 py-3">
-            <div className="grid grid-cols-2 gap-2">
-              {starterActions.map(({ label, prompt, icon: Icon }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => void submit(prompt)}
-                  className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-left text-xs font-semibold text-navy shadow-sm hover:border-blue-300 hover:bg-blue-50"
-                >
-                  <Icon className="h-4 w-4 text-blue-600" />
-                  {label}
-                </button>
-              ))}
+      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {messages.map((message) => (
+          <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
+            <div className={cn("max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-6", message.role === "user" ? "rounded-br-md bg-indigo-600 text-white" : "rounded-bl-md border border-slate-200 bg-slate-50 text-slate-700")}>
+              {message.text}
             </div>
           </div>
+        ))}
+        {thinking ? (
+          <div className="flex items-center gap-2 text-sm text-slate-500"><LoaderCircle className="h-4 w-4 animate-spin" /> IDA sedang menganalisis konteks dan permission…</div>
+        ) : null}
 
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-            {messages.map((message) => (
-              <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
-                <div
-                  className={cn(
-                    "max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                    message.role === "user"
-                      ? "rounded-br-md bg-blue-600 text-white"
-                      : "rounded-bl-md border bg-slate-50 text-slate-700",
-                  )}
-                >
-                  {message.text}
+        {proposal ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 text-amber-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-slate-900">{proposal.label}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{proposal.description}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {confirmationToken ? (
+                    <button type="button" onClick={() => void confirmAction()} disabled={executing} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60">
+                      {executing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Konfirmasi dan Jalankan
+                    </button>
+                  ) : null}
+                  <button type="button" onClick={() => { setProposal(undefined); setConfirmationToken(undefined); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600">Batalkan</button>
+                  {proposal.adminHref ? (
+                    <Link href={proposal.adminHref} className="inline-flex items-center gap-1 px-2 py-2 text-xs font-semibold text-indigo-700">Admin fallback <ChevronRight className="h-3 w-3" /></Link>
+                  ) : null}
                 </div>
               </div>
-            ))}
-            {thinking ? (
-              <div className="flex justify-start">
-                <div className="rounded-2xl rounded-bl-md border bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                  IDA sedang menganalisis…
-                </div>
-              </div>
-            ) : null}
-            {lastAction?.href ? (
-              <Button asChild className="w-full rounded-xl bg-navy text-white hover:bg-navy/90">
-                <Link href={lastAction.href}>{lastAction.action ?? "Buka Modul"}</Link>
-              </Button>
-            ) : null}
+            </div>
           </div>
+        ) : null}
+        <div ref={endRef} />
+      </div>
 
-          <form onSubmit={onSubmit} className="border-t bg-white p-3">
-            <div className="flex items-end gap-2 rounded-2xl border bg-slate-50 p-2 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
-              <textarea
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void submit(input);
-                  }
-                }}
-                rows={2}
-                placeholder="Tanyakan proses, template, atau pengaturan payroll..."
-                className="min-h-12 flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
-              />
-              <button type="submit" className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700" aria-label="Kirim">
-                <MessageCircle className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-2 flex items-center justify-between px-1 text-[10px] text-muted-foreground">
-              <span>IDA menggunakan konteks modul aktif</span>
-              <span className="flex items-center gap-1"><Download className="h-3 w-3" /> Template tersedia</span>
-            </div>
-          </form>
-        </section>
+      <form onSubmit={onSubmit} className="border-t border-slate-100 bg-white p-3">
+        <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+          <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(input); } }} rows={2} placeholder="Contoh: Hitung payroll periode 550e8400-e29b-41d4-a716-446655440000" className="min-h-12 flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none" />
+          <button type="submit" disabled={thinking || executing} className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" aria-label="Kirim"><MessageCircle className="h-4 w-4" /></button>
+        </div>
+        <div className="mt-2 flex items-center justify-between px-1 text-[10px] text-slate-400">
+          <span>Conversation state tersimpan di workspace ini</span>
+          <button type="button" onClick={() => router.refresh()} className="flex items-center gap-1 font-semibold text-indigo-600"><RefreshCw className="h-3 w-3" /> Refresh dashboard</button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+export function IdaWorkspace(props: WorkspaceProps) {
+  return <Workspace {...props} embedded />;
+}
+
+export function IdaAssistant() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("open-ida", handler);
+    return () => window.removeEventListener("open-ida", handler);
+  }, []);
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="fixed bottom-5 right-5 z-40 flex items-center gap-3 rounded-full bg-indigo-600 px-4 py-3 text-white shadow-2xl transition hover:-translate-y-0.5 hover:bg-indigo-700" aria-label="Buka IDA">
+        <Sparkles className="h-5 w-5" /><span className="hidden text-sm font-bold sm:block">Buka IDA</span>
+      </button>
+      <div className={cn("fixed inset-0 z-50 transition", open ? "pointer-events-auto" : "pointer-events-none")} aria-hidden={!open}>
+        <button type="button" onClick={() => setOpen(false)} className={cn("absolute inset-0 bg-slate-950/20 backdrop-blur-sm transition-opacity", open ? "opacity-100" : "opacity-0")} aria-label="Tutup IDA" />
+        <div className={cn("absolute bottom-4 right-4 h-[min(820px,calc(100vh-32px))] w-[min(470px,calc(100vw-32px))] transition duration-200", open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}>
+          <button type="button" onClick={() => setOpen(false)} className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-2 text-slate-500 shadow" aria-label="Tutup"><X className="h-4 w-4" /></button>
+          <Workspace className="h-full min-h-0" />
+        </div>
       </div>
     </>
   );
